@@ -3,4 +3,4 @@
 from .models import Decision, Finding, ScanResult, Severity
 
 __all__ = ["Decision", "Finding", "ScanResult", "Severity"]
-__version__ = "0.6.2"
+__version__ = "0.6.3"

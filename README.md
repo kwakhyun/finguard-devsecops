@@ -4,10 +4,10 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-FinGuard는 서로 다른 품질과 보안 리포트를 하나의 모델로 정규화하고, 검증한 입력만으로 릴리스 가능 여부를 판정하는 Python 기반 자동화 프로젝트입니다.
-소스 커밋, 이미지 digest, SBOM, 배포 대상을 `ReleaseSubject`로 묶고, 외부 변경관리 승인과 스캔 증적이 그 대상과 일치할 때만 PASS 증적을 생성합니다.
+FinGuard는 서로 다른 품질 및 보안 보고서를 하나의 모델로 정규화하고, 검증을 마친 입력만으로 릴리스 가능 여부를 판단하는 Python 기반 자동화 프로젝트입니다.
+소스 커밋, 이미지 다이제스트, SBOM, 배포 대상을 `ReleaseSubject`로 묶습니다. 외부 변경 관리 승인과 스캔 증적이 이 대상과 일치할 때만 PASS 증적을 생성합니다.
 
-이 저장소는 채용 지원을 위해 설계한 독립 포트폴리오입니다. 합성 스캔 리포트와 샘플 서비스를 사용했으며, 실제 금융사 운영 경험이나 규제 준수 인증을 주장하지 않습니다.
+이 저장소는 채용 지원을 위해 설계한 독립 포트폴리오입니다. 합성 스캔 보고서와 샘플 서비스를 사용했으며, 실제 금융사 운영 경험이나 규제 준수 인증을 주장하지 않습니다.
 
 ## 프로젝트 정보
 
@@ -19,16 +19,16 @@ FinGuard는 서로 다른 품질과 보안 리포트를 하나의 모델로 정�
 
 ## 핵심 결과
 
-| 영역 | 현재 구현 |
+| 영역 | 구현 내용 |
 | --- | --- |
-| 릴리스 결속 | commit, 단일 빌드 이미지, SBOM, cluster, namespace, workload, health URL을 하나의 불변 대상으로 검증 |
+| 릴리스 대상 결속 | 커밋, 한 번만 빌드한 이미지, SBOM, 클러스터, 네임스페이스, 워크로드, 상태 확인 URL을 하나의 불변 대상으로 검증 |
 | 보안 테스트 | Semgrep/SARIF SAST, Trivy/CycloneDX SCA, SPDX 라이선스, OWASP ZAP DAST, VEX 처리 |
-| 신뢰할 수 있는 판정 | 리포트 SHA-256, scanner, ruleset, 허용 command hash, 종료 코드, Runner, 서명, DB와 리포트 신선도를 fail-closed로 확인 |
-| 변경 통제 | CB/SR, 직무분리, 최종 빌드 후 승인, 전체 변경 요청 digest에 묶인 ITSM Cosign 증적, 배포 시간 창구와 증적 신선도 검증 |
-| 감사 증적 | 평가 전 입력 snapshot, 파일 manifest, hash-chain audit log, HMAC 또는 Cosign 서명, 소유 표식 기반 안전한 교체 |
-| 배포 안전성 | 승인된 정책 원문의 SHA-256와 이미지 digest만 Kubernetes에 배포, RBAC preflight, 서명된 결과, 실패 시 이전 불변 이미지와 감사 annotation 복원 |
-| 개발자 경험 | MR 전용 경량 정책, GitLab Code Quality, SARIF, shadow policy 비교, 로컬 즉시 피드백 |
-| 운영 가시성 | Prometheus text format으로 판정, 이슈, 예외, VEX, OSS inventory, 승인 서명 지표 export |
+| 신뢰할 수 있는 판정 | 보고서 SHA-256, 스캐너, 규칙 세트, 허용된 명령어의 해시, 종료 코드, Runner, 서명, 취약점 DB 및 보고서의 최신성을 오류 시 차단 방식으로 확인 |
+| 변경 통제 | CB/SR, 직무분리, 최종 빌드 이후 승인, 전체 변경 요청 다이제스트에 결속된 ITSM Cosign 증적, 배포 시간 창구 및 증적 유효성 검증 |
+| 감사 증적 | 평가 전 입력 스냅샷, 파일 매니페스트, 해시 체인 감사 로그, HMAC 또는 Cosign 서명, 소유 표식을 이용한 안전한 교체 |
+| 배포 안전성 | 승인된 정책 원문의 SHA-256과 이미지 다이제스트만 Kubernetes에 배포, RBAC 사전 권한 검사, 결과 서명, 실패 시 이전 불변 이미지와 감사 애너테이션 복원 |
+| 개발자 경험 | MR 전용 경량 정책, GitLab Code Quality, SARIF, 섀도 정책 비교, 빠른 로컬 피드백 |
+| 운영 가시성 | 판정, 탐지 결과, 예외, VEX, OSS 인벤토리, 승인 서명 지표를 Prometheus 형식으로 출력 |
 
 ## 3분 재현
 
@@ -44,7 +44,7 @@ make quality
 
 `pass` 시나리오는 로컬 데모 전용 HMAC 키로 PASS 증적을 서명하고 다시 검증합니다. 저장소에 공개된 이 데모용 값은 운영에 사용하면 안 됩니다. `fail` 시나리오는 Critical SCA, High SAST, AGPL, 테스트 실패, 직무분리 위반을 포함하며 의도한 종료 코드 `2`를 반환합니다.
 
-개발 중 빠른 피드백은 표준 라이브러리만 사용하는 내장 scanner로 확인합니다.
+개발 중에는 표준 라이브러리만 사용하는 내장 스캐너로 빠르게 결과를 확인할 수 있습니다.
 
 ```bash
 .venv/bin/python -m finguard scan source --workspace . --output build/reports/native
@@ -57,52 +57,54 @@ make quality
 ```mermaid
 flowchart LR
     A[Merge Request] --> B[MR 정책과 빠른 피드백]
-    B --> C[보호 main]
+    B --> C[보호된 main]
     C --> D[한 번만 빌드]
-    D --> E[불변 이미지 digest]
+    D --> E[불변 이미지 다이제스트]
     E --> F[SCA, SBOM, DAST]
     C --> G[Lint, Test, SAST]
-    F & G --> H[서명된 scan provenance]
+    F & G --> H[서명된 스캔 실행 증명서]
     E --> I[ReleaseSubject]
     I --> J[ITSM 보안과 릴리스 승인]
     J --> K[Cosign 승인 증적]
-    H & I & K --> L[financial-release gate]
+    H & I & K --> L[보호 릴리스 게이트]
     L -->|FAIL| M[배포 차단]
     L -->|PASS| N[Cosign 서명 증적]
-    N --> O[운영 rollout]
-    O --> P[smoke test]
-    P -->|실패| Q[자동 rollback]
+    N --> O[운영 롤아웃]
+    O --> P[스모크 테스트]
+    P -->|실패| Q[자동 롤백]
 ```
 
-GitLab과 Jenkins 모두 MR과 보호 릴리스의 신뢰 경계를 나눉니다.
-MR job에는 변경 승인, 서명, Kubernetes 자격 증명을 주입하지 않습니다.
-릴리스 경로는 rootless BuildKit 또는 Podman으로 이미지를 한 번만 빌드하고, 등록소가 반환한 같은 digest를 SCA, DAST, 승인, 배포에 재사용합니다.
+GitLab과 Jenkins 모두 MR과 보호 릴리스의 신뢰 경계를 분리합니다.
+MR 잡에는 변경 승인, 서명, Kubernetes 자격 증명을 주입하지 않습니다.
+릴리스 경로에서는 루트 권한이 필요 없는 BuildKit 또는 Podman으로 이미지를 한 번만 빌드합니다. 이후 레지스트리가 반환한 동일한 다이제스트를 SCA, DAST, 승인, 배포에 재사용합니다.
 
 ## 정책 판정
 
-`financial-baseline.toml`은 로컬 데모용 완전 기준이고, `financial-release.toml`은 보호 Runner에서 사용하는 엄격한 기준입니다. 릴리스 정책은 다음을 추가로 요구합니다.
+`financial-baseline.toml`은 로컬 데모에서 전체 통제를 재현하는 정책이고, `financial-release.toml`은 보호된 Runner에서 사용하는 엄격한 정책입니다. 릴리스 정책은 다음 항목을 추가로 요구합니다.
 
-- 모든 리포트의 서명된 provenance와 허용된 Runner, signer key ID
-- 전체 40자 또는 64자 source commit의 정확한 일치와 SCA/DAST 이미지 digest 일치
-- CycloneDX 리포트 SHA-256와 승인된 SBOM SHA-256 일치
-- scanner command hash와 종료 코드, ruleset hash, 취약점 DB hash 및 갱신 시각 검증
-- 최소 테스트 수, JUnit 선언값과 testcase 실측값, coverage 비율과 원시 count의 일관성
+- 모든 보고서에 서명된 스캔 실행 증명서가 있고 Runner와 서명 키 ID가 허용 목록에 포함될 것
+- 40자 또는 64자로 된 전체 소스 커밋이 정확히 일치하고 SCA/DAST 이미지 다이제스트도 일치할 것
+- CycloneDX 보고서의 SHA-256과 승인된 SBOM의 SHA-256이 일치할 것
+- 스캐너 명령어 및 규칙 세트의 해시, 종료 코드, 취약점 DB 해시와 갱신 시각이 유효할 것
+- 최소 테스트 수를 충족하고 JUnit 선언 건수와 실제 테스트 케이스 수, 커버리지 비율과 원시 집계값이 일관될 것
 - 최종 빌드 이후의 독립된 보안, 릴리스 승인
-- ITSM 발급자, Cosign key ID, 전체 `ChangeRequest` digest와 `ReleaseSubject` digest 일치
+- ITSM 발급자와 Cosign 키 ID가 허용 목록에 포함되고, 전체 `ChangeRequest` 및 `ReleaseSubject` 다이제스트가 일치할 것
 
-Finding fingerprint는 scanner 제품명과 메시지를 제외합니다. 대신 category, 규칙/CVE, component, 대소문자를 보존한 위치 또는 설치 버전을 사용해 도구가 바뀌어도 같은 이슈를 중복 제거합니다. 알려진 심각도를 `UNKNOWN` 관측값으로 덮지 않으며, 서로 다른 라이선스 버전도 합치지 않습니다. OSS 라이선스는 SPDX `AND`, `OR`, `WITH` 표현식을 의미에 맞게 평가하고, 잘못된 표현식은 통과시키지 않습니다.
+탐지 결과의 지문(fingerprint)에는 스캐너 제품명과 메시지를 넣지 않습니다. 대신 범주, 규칙 또는 CVE, 구성 요소, 대소문자를 보존한 위치나 설치 버전을 사용합니다. 따라서 도구가 바뀌어도 같은 이슈를 중복 제거할 수 있습니다.
+
+이미 확인된 심각도를 `UNKNOWN` 관측값으로 덮지 않으며, 버전이 다른 라이선스 항목도 합치지 않습니다. OSS 라이선스는 SPDX의 `AND`, `OR`, `WITH` 표현식을 의미에 맞게 평가하고 잘못된 표현식은 통과시키지 않습니다.
 
 ## 운영 서명 경계
 
 로컬 데모는 추가 의존성 없이 재현하기 위해 HMAC을 선택할 수 있습니다. 운영 CI는 다른 경계를 사용합니다.
 
-- ITSM이 개인키로 승인 payload를 서명하고 CI는 공개키만 가집니다.
-- 게이트 job만 KMS/Vault Cosign signing URI에 접근해 최종 증적을 서명합니다.
+- ITSM은 개인키로 승인 페이로드를 서명하고, CI는 공개키만 보유합니다.
+- 게이트 잡만 KMS/Vault의 Cosign 서명 URI에 접근해 최종 증적을 서명합니다.
 - 배포 Runner는 증적 공개키만 보유하며 `--require-signature`를 우회할 수 없습니다.
-- 실제 배포는 별도 KMS 또는 Vault URI로 결과 JSON까지 서명해야 하며, 서명 키가 없으면 Kubernetes를 변경하지 않습니다. Cosign bundle은 임시 파일에 완성한 뒤 원자적으로 게시하므로 실패한 부분 파일을 감사 결과로 남기지 않습니다.
+- 실제 배포에서는 별도 KMS 또는 Vault URI로 결과 JSON까지 서명해야 합니다. 서명 키가 없으면 Kubernetes를 변경하지 않습니다. Cosign 번들은 임시 파일에서 완성한 뒤 원자적으로 게시하므로, 서명에 실패한 불완전한 파일을 감사 결과로 남기지 않습니다.
 
 GitLab에서는 `APPROVAL_ATTESTATION_PATH`, `APPROVAL_ATTESTATION_BUNDLE_PATH`, `FINGUARD_APPROVAL_COSIGN_PUBLIC_KEY`, `FINGUARD_EVIDENCE_COSIGN_SIGNING_KEY`, `FINGUARD_EVIDENCE_COSIGN_PUBLIC_KEY`를 보호 변수로 관리합니다.
-스캔 서명 키와 Kubernetes 자격 증명도 보호 릴리스 Runner에만 제공합니다. 내부 registry의 BuildKit, Semgrep, Trivy, DAST Runner, ZAP 이미지 digest와 실제 도구 버전도 그룹 변수로 명시해야 합니다.
+스캔 서명 키와 Kubernetes 자격 증명도 보호 릴리스 Runner에만 제공합니다. 내부 레지스트리의 BuildKit, Semgrep, Trivy, DAST Runner, ZAP 이미지 다이제스트와 실제 도구 버전도 그룹 변수로 명시해야 합니다.
 
 ## 배포 예시
 
@@ -124,11 +126,15 @@ GitLab에서는 `APPROVAL_ATTESTATION_PATH`, `APPROVAL_ATTESTATION_BUNDLE_PATH`,
   --dry-run
 ```
 
-실제 배포는 서명된 PASS 증적으로 직무분리와 품질 통제가 통과했음을 확인합니다. 이어서 정책 ID, 버전, 정책 파일 SHA-256, 변경 ID, 이미지와 클러스터 및 workload, 배포 창구, 증적 평가 시각을 다시 대조합니다. 증적 디렉터리도 검증 전에 전용 snapshot으로 고정합니다. 오래됐거나 미래 시각인 증적은 재사용할 수 없습니다. rollout, smoke test 또는 배포 결과 서명이 실패하면 배포 전에 읽어 둔 정확한 이전 이미지 digest와 기존 FinGuard 감사 annotation을 복원합니다. 실제 배포에는 `--result-cosign-signing-key`가 필수이고, 결과 파일은 기본적으로 기존 파일을 덮어쓰지 않습니다.
+실제 배포에서는 서명된 PASS 증적으로 직무분리와 품질 통과 여부를 확인합니다. 정책 ID와 버전, 정책 파일 SHA-256, 변경 ID, 이미지, 클러스터, 워크로드, 배포 시간 창구, 증적 평가 시각도 다시 대조합니다.
+
+검증을 시작하기 전에 증적 디렉터리를 전용 스냅샷으로 고정하므로, 오래됐거나 미래 시각인 증적은 재사용할 수 없습니다.
+
+롤아웃, 스모크 테스트 또는 배포 결과 서명에 실패하면 배포 직전에 확인한 이전 이미지 다이제스트와 FinGuard 감사 애너테이션을 복원합니다. 실제 배포에는 `--result-cosign-signing-key`가 필요하며, 결과 파일은 기본적으로 덮어쓰지 않습니다.
 
 ## 온프레미스 예시
 
-SonarQube와 PostgreSQL 예시도 부동 태그를 사용하지 않습니다. 내부 registry에 반입하고 서명을 검증한 digest 참조를 설정한 뒤 wrapper를 통해 시작합니다.
+SonarQube와 PostgreSQL 예시에서도 부동 태그를 사용하지 않습니다. 이미지를 내부 레지스트리로 반입하고 서명을 검증한 뒤, 다이제스트 참조를 설정해 실행 스크립트로 시작합니다.
 
 ```bash
 export POSTGRES_IMAGE='registry.internal/postgres@sha256:<64-hex>'
@@ -140,14 +146,14 @@ make onprem-up
 ## 저장소 구성
 
 ```text
-finguard/                 CLI, 정규화, 정책, provenance, 증적, 배포
-policies/                 MR, baseline, 보호 릴리스 정책과 예외 예시
+finguard/                 CLI, 정규화, 정책, 스캔 실행 증명서, 증적, 배포
+policies/                 MR, 기준, 보호 릴리스 정책과 예외 예시
 .semgrep/                 Python Secure Coding 규칙
 examples/scenarios/       재현 가능한 PASS와 FAIL 입력
-sample_service/           DAST와 smoke test용 최소 HTTP 서비스
-tests/                    정책, parser, 신뢰 경계, 무결성, rollback 테스트
+sample_service/           DAST와 스모크 테스트용 최소 HTTP 서비스
+tests/                    정책, 파서, 신뢰 경계, 무결성, 롤백 테스트
 infra/                    온프레미스 SonarQube 구성 예시
-docs/                     설계, 통제 매핑, ChangeFlow, 런북, 로드맵
+docs/                     설계, 통제 매핑, 변경 관리 흐름, 런북, 로드맵
 .gitlab-ci.yml            GitLab MR과 릴리스 파이프라인
 Jenkinsfile               Jenkins 동일 통제 파이프라인
 ```
@@ -156,21 +162,22 @@ Jenkinsfile               Jenkins 동일 통제 파이프라인
 
 - [아키텍처와 위협 모델](docs/architecture.md)
 - [DevOps 역량과 통제 구현 매핑](docs/control-mapping.md)
-- [Git 및 CB/SR ChangeFlow](docs/changeflow.md)
+- [Git 기반 CB/SR 변경 관리 흐름](docs/changeflow.md)
 - [운영과 장애 대응 런북](docs/operations-runbook.md)
 - [면접 시연 가이드](docs/portfolio-guide.md)
 - [단계별 개선 이력과 다음 로드맵](docs/roadmap.md)
 
 ## 검증한 범위와 남은 한계
 
-- 코어 로직은 Python 3.11 표준 라이브러리만 사용하고 단위 및 통합 테스트로 검증했습니다.
-- 현재 회귀 테스트는 192개이며 Ruff, Mypy, 85% 이상 coverage 기준과 함께 실행합니다.
-- 공개 GitHub Actions는 Semgrep, Trivy, OWASP ZAP을 실제 실행하고 결과를 같은 정책 게이트로 판정합니다.
-  Cosign과 kubectl은 CI adapter 및 subprocess 계약 테스트로 검증했으며, 실제 온프레미스 서버나 Kubernetes cluster를 기동한 실적은 아닙니다.
-- generic SARIF adapter로 Coverity와 SonarQube export를 읽을 수 있지만 상용 서버 API와 직접 통합하지는 않았습니다.
+- 핵심 로직은 Python 3.11 표준 라이브러리만 사용하고 단위 및 통합 테스트로 검증했습니다.
+- 현재 회귀 테스트는 194개이며 Ruff, Mypy, 85% 이상의 커버리지 기준과 함께 실행합니다.
+- 공개 GitHub Actions는 Semgrep, Trivy, OWASP ZAP을 실제 실행합니다. 테스트 실패와 보안 탐지 결과는 보고서로 보존한 뒤 FinGuard 정책 게이트에서 최종 판정합니다.
+- 공개 저장소의 `main`은 Pull Request와 필수 CI 검사를 통과해야 변경할 수 있으며, 강제 푸시와 삭제를 차단합니다. Dependabot은 Python 및 GitHub Actions 의존성을 주간 주기로 점검합니다.
+  Cosign과 kubectl은 CI 어댑터 및 하위 프로세스 계약 테스트로 검증했으며, 실제 온프레미스 서버나 Kubernetes 클러스터를 기동한 실적은 아닙니다.
+- 범용 SARIF 어댑터로 Coverity와 SonarQube 내보내기 결과를 읽을 수 있지만 상용 서버 API와 직접 통합하지는 않았습니다.
 - FOSSA 제품 실행은 검증 범위에 포함하지 않았습니다. 대신 Trivy, CycloneDX, SPDX 정책으로 OSS 관리 경계가 작동하도록 구성했습니다.
-- 실제 도입 시 ITSM과 IdP API, workload identity 기반 scanner 서명, 서명된 정책 bundle, WORM 증적 저장소, SIEM 전송, 데이터베이스 migration 통제를 추가해야 합니다.
+- 실제 도입 시 ITSM 및 IdP API, 워크로드 아이덴티티 기반 스캐너 서명, 서명된 정책 번들, WORM 증적 저장소, SIEM 전송, 데이터베이스 마이그레이션 통제를 추가해야 합니다.
 
 ## 라이선스
 
-MIT License. 자세한 내용은 [LICENSE](LICENSE)를 확인하세요.
+MIT 라이선스입니다. 자세한 내용은 [LICENSE](LICENSE)를 확인하세요.

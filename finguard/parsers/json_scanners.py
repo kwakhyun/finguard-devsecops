@@ -490,6 +490,18 @@ def parse_cyclonedx(data: object, path: Path) -> ScanResult:
     findings: list[Finding] = []
     component_refs: dict[str, tuple[str, str]] = {}
     components = _cyclonedx_components(data.get("components", []), path)
+    metadata = _object(data.get("metadata"), "metadata", path)
+    subject_component = metadata.get("component")
+    if subject_component is not None:
+        components = (
+            _cyclonedx_components(
+                subject_component,
+                path,
+                field="metadata.component",
+                singleton=True,
+            )
+            + components
+        )
     for component_context, component in components:
         name = _required_string(component.get("name"), f"{component_context}.name", path)
         version = _optional_string(component.get("version"), f"{component_context}.version", path)
@@ -506,6 +518,8 @@ def parse_cyclonedx(data: object, path: Path) -> ScanResult:
             component.get("licenses", []), f"{component_context}.licenses", path
         )
         if not licenses:
+            if component_context == "metadata.component":
+                continue
             licenses = [{"license": {"id": "UNKNOWN"}}]
         for license_index, license_wrapper in enumerate(licenses):
             expression = license_wrapper.get("expression")
@@ -665,11 +679,21 @@ def parse_cyclonedx(data: object, path: Path) -> ScanResult:
     )
 
 
-def _cyclonedx_components(value: object, path: Path) -> list[tuple[str, dict[str, object]]]:
+def _cyclonedx_components(
+    value: object,
+    path: Path,
+    *,
+    field: str = "components",
+    singleton: bool = False,
+) -> list[tuple[str, dict[str, object]]]:
     """Flatten CycloneDX nested components while retaining precise error paths."""
 
-    roots = _object_list(value, "components", path)
-    pending = [(f"components[{index}]", item) for index, item in reversed(list(enumerate(roots)))]
+    if singleton:
+        roots = [(field, _object(value, field, path))]
+    else:
+        root_items = _object_list(value, field, path)
+        roots = [(f"{field}[{index}]", item) for index, item in enumerate(root_items)]
+    pending = list(reversed(roots))
     result: list[tuple[str, dict[str, object]]] = []
     while pending:
         context, component = pending.pop()

@@ -161,6 +161,32 @@ def test_trivy_source_license_does_not_require_package_metadata(tmp_path: Path) 
     assert license_finding.metadata["kind"] == "source_license"
 
 
+def test_cyclonedx_counts_the_metadata_subject_component(tmp_path: Path) -> None:
+    report = tmp_path / "sbom.cdx.json"
+    report.write_text(
+        json.dumps(
+            {
+                "bomFormat": "CycloneDX",
+                "specVersion": "1.6",
+                "metadata": {
+                    "component": {
+                        "bom-ref": "finguard-app",
+                        "type": "application",
+                        "name": "finguard-app",
+                    }
+                },
+                "components": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = parse_report(report, "cyclonedx")
+
+    assert result.metrics["component_count"] == 1
+    assert result.findings == []
+
+
 def test_cyclonedx_rejects_null_component_name_and_oversized_score(tmp_path: Path) -> None:
     invalid_payloads = [
         {

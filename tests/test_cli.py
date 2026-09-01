@@ -116,7 +116,9 @@ def test_cli_demo_fail_returns_policy_exit_code(project_root: Path, tmp_path: Pa
         ]
     )
     assert code == EXIT_GATE_FAILED
-    assert json.loads(capsys.readouterr().out)["decision"] == "fail"
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["decision"] == "fail"
+    assert {item["code"] for item in payload["violations"]}
 
 
 def test_cli_verify_requires_signature_unless_explicitly_opted_out(

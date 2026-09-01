@@ -418,6 +418,10 @@ def _handle_gate_snapshot(args: argparse.Namespace) -> int:
     payload: dict[str, object] = {
         "decision": result.decision.value,
         "violation_count": len(result.violations),
+        "violations": [
+            {"code": violation.code, "message": violation.message}
+            for violation in result.violations
+        ],
         "active_finding_count": len(result.active_findings),
         "excepted_finding_count": len(result.excepted_findings),
         "manifest": str(manifest),

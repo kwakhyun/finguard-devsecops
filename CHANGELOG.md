@@ -2,6 +2,19 @@
 
 이 문서는 FinGuard 공개 포트폴리오의 주요 변경을 기록합니다.
 
+## [0.6.2] - 2026-09-01
+
+### Fixed
+
+- Trivy 파일 라이선스 보고서와 CycloneDX `metadata.component` 형식 지원
+- PATH의 Python 명령을 E2E 데모에서 안전하게 해석하도록 러너 호환성 개선
+- `upload-artifact`를 Node.js 24 기반 공식 릴리스의 불변 커밋으로 갱신
+- 게이트 결과에 위반 코드와 메시지를 출력해 CI 실패 진단성 강화
+
+### Verified
+
+- 192개 회귀 테스트와 실제 Semgrep, Trivy, OWASP ZAP 보고서 재평가 통과
+
 ## [0.6.1] - 2026-09-01
 
 ### Fixed
@@ -9,7 +22,7 @@
 - 커밋된 CycloneDX SBOM과 릴리스 주체, 변경 승인 정보의 digest 정합성 복구
 - 실제 Semgrep 규칙과 보호 릴리스 정책의 ruleset digest 동기화
 - 빈 Ruff 보고서에서도 변조 검증이 유효하도록 회귀 테스트 보강
-- GitHub Actions를 Node.js 24 기반 공식 릴리스의 불변 커밋으로 갱신
+- GitHub Actions의 checkout과 Python 설정을 Node.js 24 기반 공식 릴리스로 갱신
 
 ## [0.6.0] - 2026-09-01
 
@@ -27,5 +40,6 @@
 - 190개 회귀 테스트와 85% 이상 coverage
 - 정상 릴리스 PASS 증적 검증과 위험 릴리스 차단
 
+[0.6.2]: https://github.com/kwakhyun/finguard-devsecops/tree/v0.6.2
 [0.6.1]: https://github.com/kwakhyun/finguard-devsecops/tree/v0.6.1
 [0.6.0]: https://github.com/kwakhyun/finguard-devsecops/tree/v0.6.0

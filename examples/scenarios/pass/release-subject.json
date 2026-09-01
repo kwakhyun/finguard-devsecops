@@ -4,7 +4,7 @@
   "repository": "https://git.example/credit/customer-credit-api.git",
   "commit_sha": "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
   "image": "registry.example/credit/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-  "sbom_sha256": "b7b4afa1976db596beb766a540c4845d24965e76f59fc5b8abde2edd5a5c83e6",
+  "sbom_sha256": "4f0611efd20444b34aed7373e01d750661df7bb8dc8d84075d56859183ad237a",
   "environment": "production",
   "cluster": "onprem-prod-01",
   "namespace": "credit-prod",

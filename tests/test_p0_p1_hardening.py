@@ -620,7 +620,7 @@ def test_report_tampering_breaks_attestation_binding(project_root: Path, tmp_pat
         signing_key=b"key",
         key_id="onprem-scan-attestor-v1",
     )
-    report.write_text("[]\n", encoding="utf-8")
+    report.write_bytes(report.read_bytes() + b" ")
     with pytest.raises(EvidenceVerificationError, match="does not match report"):
         load_scan_attestation(attestation, report_path=report, signing_key=b"key")
 

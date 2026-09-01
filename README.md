@@ -164,7 +164,7 @@ Jenkinsfile               Jenkins 동일 통제 파이프라인
 ## 검증한 범위와 남은 한계
 
 - 코어 로직은 Python 3.11 표준 라이브러리만 사용하고 단위 및 통합 테스트로 검증했습니다.
-- 현재 회귀 테스트는 190개이며 Ruff, Mypy, 85% 이상 coverage 기준과 함께 실행합니다.
+- 현재 회귀 테스트는 191개이며 Ruff, Mypy, 85% 이상 coverage 기준과 함께 실행합니다.
 - 공개 GitHub Actions는 Semgrep, Trivy, OWASP ZAP을 실제 실행하고 결과를 같은 정책 게이트로 판정합니다.
   Cosign과 kubectl은 CI adapter 및 subprocess 계약 테스트로 검증했으며, 실제 온프레미스 서버나 Kubernetes cluster를 기동한 실적은 아닙니다.
 - generic SARIF adapter로 Coverity와 SonarQube export를 읽을 수 있지만 상용 서버 API와 직접 통합하지는 않았습니다.

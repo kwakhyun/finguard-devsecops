@@ -303,12 +303,14 @@ def parse_trivy(data: object, path: Path) -> ScanResult:
         ):
             prefix = f"Results[{result_index}].Licenses[{license_index}]"
             license_id = _required_string(license_item.get("Name"), f"{prefix}.Name", path)
-            package_name = _required_string(license_item.get("PkgName"), f"{prefix}.PkgName", path)
+            package_name = _optional_string(license_item.get("PkgName"), f"{prefix}.PkgName", path)
             package_version = _optional_string(
                 license_item.get("PkgVersion", license_item.get("Version")),
                 f"{prefix}.PkgVersion",
                 path,
             )
+            file_path = _optional_string(license_item.get("FilePath"), f"{prefix}.FilePath", path)
+            component = package_name or file_path or target
             findings.append(
                 Finding(
                     scanner="trivy",
@@ -316,11 +318,11 @@ def parse_trivy(data: object, path: Path) -> ScanResult:
                     rule_id="license.detected",
                     severity=Severity.INFO,
                     message=f"License detected: {license_id}",
-                    location=target,
-                    component=package_name,
+                    location=file_path or target,
+                    component=component,
                     installed_version=package_version,
                     license_id=license_id,
-                    metadata={"kind": "dependency_license"},
+                    metadata={"kind": "dependency_license" if package_name else "source_license"},
                 )
             )
     return ScanResult(

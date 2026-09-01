@@ -10,7 +10,7 @@ FinGuard는 여러 품질 및 보안 도구의 결과를 한 모델로 정규화
 | 개발 형태 | 개인 프로젝트 |
 | 기여도 | 100% — 기획, 설계, 구현, 테스트, CI/CD, 문서화 |
 | 주요 기술 | Python, Bash, GitLab CI, Jenkins, GitHub Actions, Semgrep, Trivy, CycloneDX, SPDX, OWASP ZAP, Cosign, Kubernetes |
-| 검증 | Ruff, Mypy, 190개 테스트, 85% 이상 coverage, 정상 및 차단 E2E 시나리오 |
+| 검증 | Ruff, Mypy, 191개 테스트, 85% 이상 coverage, 정상 및 차단 E2E 시나리오 |
 
 ## 해결하려는 문제
 

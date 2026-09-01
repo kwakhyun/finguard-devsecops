@@ -4,9 +4,14 @@ set -euo pipefail
 project_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${project_dir}"
 
-python_bin="${FINGUARD_PYTHON:-${project_dir}/.venv/bin/python}"
-if [[ ! -x "${python_bin}" ]]; then
-  echo "FinGuard Python executable not found: ${python_bin}" >&2
+python_candidate="${FINGUARD_PYTHON:-${project_dir}/.venv/bin/python}"
+if [[ "${python_candidate}" == */* ]]; then
+  python_bin="${python_candidate}"
+else
+  python_bin="$(command -v -- "${python_candidate}" || true)"
+fi
+if [[ -z "${python_bin}" || ! -x "${python_bin}" ]]; then
+  echo "FinGuard Python executable not found: ${python_candidate}" >&2
   echo "Create .venv as documented or set FINGUARD_PYTHON." >&2
   exit 3
 fi

@@ -134,6 +134,33 @@ def test_null_fixed_version_is_not_treated_as_an_available_fix(tmp_path: Path) -
     assert result.findings[0].fixed_version == ""
 
 
+def test_trivy_source_license_does_not_require_package_metadata(tmp_path: Path) -> None:
+    report = tmp_path / "trivy.json"
+    report.write_text(
+        json.dumps(
+            {
+                "SchemaVersion": 2,
+                "Results": [
+                    {
+                        "Target": "LICENSE",
+                        "Licenses": [{"Name": "MIT", "FilePath": "LICENSE"}],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = parse_report(report, "trivy")
+
+    assert len(result.findings) == 1
+    license_finding = result.findings[0]
+    assert license_finding.license_id == "MIT"
+    assert license_finding.component == "LICENSE"
+    assert license_finding.installed_version == ""
+    assert license_finding.metadata["kind"] == "source_license"
+
+
 def test_cyclonedx_rejects_null_component_name_and_oversized_score(tmp_path: Path) -> None:
     invalid_payloads = [
         {

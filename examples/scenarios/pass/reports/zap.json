@@ -1,0 +1,9 @@
+{
+  "@version": "2.15.0",
+  "site": [
+    {
+      "@name": "http://sample-service:8080",
+      "alerts": []
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+rules:
+  - id: finguard.python.subprocess-shell-true
+    languages: [python]
+    severity: ERROR
+    message: shell=True 사용은 명령어 삽입 위험이 있으므로 인자 배열로 실행해야 합니다.
+    metadata:
+      cwe: CWE-78
+      confidence: HIGH
+      category: security
+    patterns:
+      - pattern: subprocess.$FUNC(..., shell=True, ...)
+
+  - id: finguard.python.tls-verification-disabled
+    languages: [python]
+    severity: ERROR
+    message: 외부 통신의 TLS 인증서 검증을 비활성화하면 안 됩니다.
+    metadata:
+      cwe: CWE-295
+      confidence: HIGH
+      category: security
+    patterns:
+      - pattern-either:
+          - pattern: requests.get(..., verify=False, ...)
+          - pattern: requests.post(..., verify=False, ...)
+          - pattern: requests.request(..., verify=False, ...)
+
+  - id: finguard.python.unsafe-yaml-load
+    languages: [python]
+    severity: ERROR
+    message: 신뢰할 수 없는 YAML은 safe_load로 역직렬화해야 합니다.
+    metadata:
+      cwe: CWE-502
+      confidence: HIGH
+      category: security
+    pattern: yaml.load(...)
+
+  - id: finguard.python.flask-debug-enabled
+    languages: [python]
+    severity: ERROR
+    message: 운영 환경에서 Flask 디버그 모드를 활성화하면 안 됩니다.
+    metadata:
+      cwe: CWE-489
+      confidence: HIGH
+      category: security
+    pattern: $APP.run(..., debug=True, ...)

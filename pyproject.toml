@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=68", "wheel>=0.47,<0.48"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "finguard-devsecops"
+version = "0.6.0"
+description = "Policy-as-code DevSecOps quality gate for regulated on-premise delivery"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "kwakhyun" }]
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/kwakhyun/finguard-devsecops"
+Portfolio = "https://github.com/kwakhyun/finguard-devsecops/blob/main/PORTFOLIO.md"
+Issues = "https://github.com/kwakhyun/finguard-devsecops/issues"
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0,<9",
+  "pytest-cov>=5.0,<7",
+  "ruff>=0.9,<1",
+  "mypy>=1.13,<2",
+  "wheel>=0.47,<0.48",
+]
+
+[project.scripts]
+finguard = "finguard.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["finguard*"]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-markers"
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+exclude = ["tests/fixtures/insecure"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "S", "UP"]
+ignore = ["S101"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unused_configs = true

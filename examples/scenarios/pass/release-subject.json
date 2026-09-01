@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "service": "customer-credit-api",
+  "repository": "https://git.example/credit/customer-credit-api.git",
+  "commit_sha": "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+  "image": "registry.example/credit/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "sbom_sha256": "b7b4afa1976db596beb766a540c4845d24965e76f59fc5b8abde2edd5a5c83e6",
+  "environment": "production",
+  "cluster": "onprem-prod-01",
+  "namespace": "credit-prod",
+  "deployment": "customer-credit-api",
+  "container": "api",
+  "healthcheck_url": "http://customer-credit-api.credit-prod.svc.cluster.local:8080/health",
+  "builder_id": "gitlab:onprem-protected",
+  "built_at": "2026-08-30T12:00:00+00:00"
+}

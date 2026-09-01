@@ -1,0 +1,38 @@
+[change]
+id = "CB-2026-0107"
+type = "CB"
+service = "customer-credit-api"
+environment = "production"
+summary = "고객 신용조회 API의 응답 캐시 안정성 개선"
+risk = "medium"
+commit_sha = "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678"
+requester = "developer@company.example"
+deployer = "operator@company.example"
+rollback_plan = "직전 검증 이미지로 배포 슬롯을 전환하고 캐시 스키마 변경분을 되돌린다."
+window_start = 2026-09-01T22:00:00+09:00
+window_end = 2026-09-01T23:00:00+09:00
+
+[release]
+service = "customer-credit-api"
+repository = "https://git.example/credit/customer-credit-api.git"
+commit_sha = "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678"
+image = "registry.example/credit/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+sbom_sha256 = "b7b4afa1976db596beb766a540c4845d24965e76f59fc5b8abde2edd5a5c83e6"
+environment = "production"
+cluster = "onprem-prod-01"
+namespace = "credit-prod"
+deployment = "customer-credit-api"
+container = "api"
+healthcheck_url = "http://customer-credit-api.credit-prod.svc.cluster.local:8080/health"
+builder_id = "gitlab:onprem-protected"
+built_at = 2026-08-30T12:00:00Z
+
+[[approvals]]
+approver = "security-reviewer@company.example"
+role = "security"
+approved_at = 2026-08-31T09:10:00+09:00
+
+[[approvals]]
+approver = "release-manager@company.example"
+role = "release_manager"
+approved_at = 2026-08-31T10:20:00+09:00

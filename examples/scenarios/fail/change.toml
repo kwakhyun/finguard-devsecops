@@ -1,0 +1,31 @@
+[change]
+id = "CB-2026-0999"
+type = "CB"
+service = "customer-credit-api"
+environment = "production"
+summary = "검증되지 않은 긴급 변경"
+risk = "high"
+commit_sha = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+requester = "developer@company.example"
+deployer = "developer@company.example"
+rollback_plan = "되돌린다"
+
+[release]
+service = "customer-credit-api"
+repository = "https://git.example/credit/customer-credit-api.git"
+commit_sha = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+image = "registry.example/credit/api@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+sbom_sha256 = "327eddabd60db7e7d1c550b7c391534abaffa5baa41059d731f771e4b9e30e94"
+environment = "production"
+cluster = "onprem-prod-01"
+namespace = "credit-prod"
+deployment = "customer-credit-api"
+container = "api"
+healthcheck_url = "http://customer-credit-api.credit-prod.svc.cluster.local:8080/health"
+builder_id = "gitlab:onprem-protected"
+built_at = 2026-08-30T12:00:00Z
+
+[[approvals]]
+approver = "developer@company.example"
+role = "developer"
+approved_at = 2026-08-31T09:10:00+09:00

@@ -1,0 +1,389 @@
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+
+stages:
+  - validate
+  - build
+  - test
+  - security
+  - attest
+  - gate
+  - deploy
+
+variables:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+  REPORT_DIR: "build/reports"
+  ATTESTATION_DIR: "build/attestations"
+  EVIDENCE_DIR: "build/evidence"
+  RELEASE_POLICY_ID: "FIN-SW-DEVSECOPS-RELEASE"
+  RELEASE_POLICY_VERSION: "5.1.0"
+  RELEASE_POLICY_SHA256: "981e7715ce40a347212511a3fba523dc9e15b7af5774d65f636676cedce1d6e3"
+  PYTHON_IMAGE: "python:3.11-slim-bookworm@sha256:c425d915a89a6dcd3183b1797ad9bd8878caff5a417f6371c8df93c8ea8b727f"
+  RUFF_VERSION: "0.16.5"
+  PYTEST_VERSION: "8.4.2"
+  COVERAGE_VERSION: "7.16.0"
+  # Required group variables below point to signed images mirrored into the
+  # internal registry. Every image must be an immutable @sha256 reference,
+  # and its matching version variable must describe the mirrored tool.
+  BUILDKIT_IMAGE: ""
+  GATE_RUNNER_IMAGE: ""
+  DEPLOY_RUNNER_IMAGE: ""
+  SEMGREP_IMAGE: ""
+  TRIVY_IMAGE: ""
+  DAST_RUNNER_IMAGE: ""
+  ZAP_IMAGE: ""
+  SEMGREP_VERSION: ""
+  TRIVY_VERSION: ""
+  ZAP_VERSION: ""
+  TRIVY_DB_METADATA_PATH: "/root/.cache/trivy/db/metadata.json"
+  # ITSM publishes these two files after approving build/release-subject.json.
+  # The verifier receives only the public key through a protected file variable.
+  APPROVAL_ATTESTATION_PATH: ""
+  APPROVAL_ATTESTATION_BUNDLE_PATH: ""
+  VEX_ATTESTATION_PATH: ""
+  VEX_ATTESTATION_BUNDLE_PATH: ""
+
+default:
+  tags: [onprem-linux]
+  interruptible: true
+
+.merge-request-rules:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+
+.release-rules:
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+
+validate-image-pins:
+  stage: validate
+  image: "$GATE_RUNNER_IMAGE"
+  script:
+    - python -m pip install --no-deps .
+    - python -m finguard validate-images "$PYTHON_IMAGE" "$GATE_RUNNER_IMAGE" "$SEMGREP_IMAGE" "$TRIVY_IMAGE"
+    - test -n "$SEMGREP_VERSION"
+    - test -n "$TRIVY_VERSION"
+    - if [ "$CI_COMMIT_BRANCH" = "$CI_DEFAULT_BRANCH" ]; then python -m finguard validate-images "$BUILDKIT_IMAGE" "$DAST_RUNNER_IMAGE" "$ZAP_IMAGE" "$DEPLOY_RUNNER_IMAGE"; fi
+    - if [ "$CI_COMMIT_BRANCH" = "$CI_DEFAULT_BRANCH" ]; then test -n "$ZAP_VERSION"; fi
+    - test -f "$FINGUARD_TOOL_IMAGE_COSIGN_PUBLIC_KEY"
+    - cosign verify --key "$FINGUARD_TOOL_IMAGE_COSIGN_PUBLIC_KEY" "$PYTHON_IMAGE" "$GATE_RUNNER_IMAGE" "$SEMGREP_IMAGE" "$TRIVY_IMAGE"
+    - if [ "$CI_COMMIT_BRANCH" = "$CI_DEFAULT_BRANCH" ]; then cosign verify --key "$FINGUARD_TOOL_IMAGE_COSIGN_PUBLIC_KEY" "$BUILDKIT_IMAGE" "$DAST_RUNNER_IMAGE" "$ZAP_IMAGE" "$DEPLOY_RUNNER_IMAGE"; fi
+
+build-release:
+  extends: .release-rules
+  stage: build
+  image:
+    name: "$BUILDKIT_IMAGE"
+    entrypoint: [""]
+  needs: [validate-image-pins]
+  variables:
+    BUILDKITD_FLAGS: "--oci-worker-no-process-sandbox"
+  before_script:
+    - mkdir -p build "$HOME/.docker"
+    - registry_auth=$(printf '%s:%s' "$CI_REGISTRY_USER" "$CI_REGISTRY_PASSWORD" | base64 | tr -d '\n')
+    - printf '{"auths":{"%s":{"auth":"%s"}}}\n' "$CI_REGISTRY" "$registry_auth" > "$HOME/.docker/config.json"
+  script:
+    - buildctl-daemonless.sh build --frontend dockerfile.v0 --local context=. --local dockerfile=. --opt filename=Dockerfile --output "type=image,name=$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA,push=true" --metadata-file build/build-metadata.json
+    - compact_metadata=$(tr -d '\n ' < build/build-metadata.json)
+    - image_digest=$(printf '%s' "$compact_metadata" | sed -n 's/.*"containerimage.digest":"\([^"]*\)".*/\1/p')
+    - test -n "$image_digest"
+    - printf 'IMMUTABLE_IMAGE_REF=%s@%s\nIMAGE_DIGEST=%s\n' "$CI_REGISTRY_IMAGE" "$image_digest" "$image_digest" > build/release.env
+  artifacts:
+    reports:
+      dotenv: build/release.env
+    paths: [build/build-metadata.json, build/release.env]
+    expire_in: 30 days
+
+source-quality:
+  stage: test
+  image: "$PYTHON_IMAGE"
+  needs: [validate-image-pins]
+  before_script:
+    - mkdir -p "$REPORT_DIR" "$ATTESTATION_DIR"
+    - python -m pip install -r requirements-dev.lock
+    - python -m pip install --no-deps -e .
+  script:
+    - source_started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    - ruff check . --exit-zero --output-format=json --output-file="$REPORT_DIR/ruff.json"
+    - ruff_status=$?
+    - format_status=0
+    - ruff format --check . || format_status=$?
+    - mypy_status=0
+    - mypy finguard sample_service || mypy_status=$?
+    - source_finished_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    - test_started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    - pytest_status=0
+    - pytest --junitxml="$REPORT_DIR/junit.xml" --cov=finguard --cov-report=xml:"$REPORT_DIR/coverage.xml" || pytest_status=$?
+    - test_finished_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    - |
+      if [ "$CI_COMMIT_BRANCH" = "$CI_DEFAULT_BRANCH" ]; then
+        test -n "$FINGUARD_SCAN_ATTESTATION_KEY"
+        test "$(python -c 'import importlib.metadata as m; print(m.version("ruff"))')" = "$RUFF_VERSION"
+        test "$(python -c 'import importlib.metadata as m; print(m.version("pytest"))')" = "$PYTEST_VERSION"
+        test "$(python -c 'import importlib.metadata as m; print(m.version("coverage"))')" = "$COVERAGE_VERSION"
+        ruff_completion=--incomplete
+        test "$ruff_status" -eq 0 && ruff_completion=--complete
+        test_completion=--incomplete
+        test "$pytest_status" -le 1 && test_completion=--complete
+        python -m finguard attest-report --report "$REPORT_DIR/ruff.json" --output "$ATTESTATION_DIR/ruff.json" --scanner ruff --category lint --scanner-version "$RUFF_VERSION" --scanner-uri "$PYTHON_IMAGE" --source-commit "$CI_COMMIT_SHA" --ruleset pyproject.toml --command "ruff check . --exit-zero --output-format=json" --ci-job-id "$CI_JOB_ID:source-quality" --runner-id gitlab:onprem-protected --exit-code "$ruff_status" "$ruff_completion" --started-at "$source_started_at" --finished-at "$source_finished_at" --signing-key-env FINGUARD_SCAN_ATTESTATION_KEY --key-id onprem-scan-attestor-v1
+        python -m finguard attest-report --report "$REPORT_DIR/junit.xml" --output "$ATTESTATION_DIR/junit.json" --scanner junit --category test --scanner-version "$PYTEST_VERSION" --scanner-uri "$PYTHON_IMAGE" --source-commit "$CI_COMMIT_SHA" --ruleset pyproject.toml --command "pytest --junitxml" --ci-job-id "$CI_JOB_ID:source-quality" --runner-id gitlab:onprem-protected --exit-code "$pytest_status" "$test_completion" --started-at "$test_started_at" --finished-at "$test_finished_at" --signing-key-env FINGUARD_SCAN_ATTESTATION_KEY --key-id onprem-scan-attestor-v1
+        python -m finguard attest-report --report "$REPORT_DIR/coverage.xml" --output "$ATTESTATION_DIR/coverage.json" --scanner coverage.py --category test --scanner-version "$COVERAGE_VERSION" --scanner-uri "$PYTHON_IMAGE" --source-commit "$CI_COMMIT_SHA" --ruleset pyproject.toml --command "pytest --cov=finguard --cov-report=xml" --ci-job-id "$CI_JOB_ID:source-quality" --runner-id gitlab:onprem-protected --exit-code "$pytest_status" "$test_completion" --started-at "$test_started_at" --finished-at "$test_finished_at" --signing-key-env FINGUARD_SCAN_ATTESTATION_KEY --key-id onprem-scan-attestor-v1
+      fi
+    - test "$format_status" -eq 0
+    - test "$mypy_status" -eq 0
+    - test "$pytest_status" -le 1
+  artifacts:
+    when: always
+    paths:
+      - build/reports/ruff.json
+      - build/reports/junit.xml
+      - build/reports/coverage.xml
+      - build/attestations/ruff.json
+      - build/attestations/junit.json
+      - build/attestations/coverage.json
+    reports:
+      junit: build/reports/junit.xml
+    expire_in: 30 days
+
+sast:
+  stage: security
+  image: "$SEMGREP_IMAGE"
+  needs: [validate-image-pins]
+  before_script:
+    - mkdir -p "$REPORT_DIR" "$ATTESTATION_DIR"
+    - python -m pip install --no-deps .
+  script:
+    - test "$(semgrep --version | head -n 1)" = "$SEMGREP_VERSION"
+    - scan_started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    - semgrep_status=0
+    - semgrep scan --config .semgrep/secure-coding.yml --json --output "$REPORT_DIR/semgrep.json" . || semgrep_status=$?
+    - scan_finished_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    - |
+      if [ "$CI_COMMIT_BRANCH" = "$CI_DEFAULT_BRANCH" ]; then
+        test -n "$FINGUARD_SCAN_ATTESTATION_KEY"
+        completion=--incomplete
+        test "$semgrep_status" -eq 0 && completion=--complete
+        python -m finguard attest-report --report "$REPORT_DIR/semgrep.json" --output "$ATTESTATION_DIR/semgrep.json" --scanner semgrep --category sast --scanner-version "$SEMGREP_VERSION" --scanner-uri "$SEMGREP_IMAGE" --source-commit "$CI_COMMIT_SHA" --ruleset .semgrep/secure-coding.yml --command "semgrep scan --config .semgrep/secure-coding.yml" --ci-job-id "$CI_JOB_ID:sast" --runner-id gitlab:onprem-protected --exit-code "$semgrep_status" "$completion" --started-at "$scan_started_at" --finished-at "$scan_finished_at" --signing-key-env FINGUARD_SCAN_ATTESTATION_KEY --key-id onprem-scan-attestor-v1
+      fi
+    - test "$semgrep_status" -eq 0
+  artifacts:
+    when: always
+    paths: [build/reports/semgrep.json, build/attestations/semgrep.json]
+    expire_in: 30 days
+
+sca-merge-request:
+  extends: .merge-request-rules
+  stage: security
+  image:
+    name: "$TRIVY_IMAGE"
+    entrypoint: [""]
+  needs: [validate-image-pins]
+  before_script:
+    - mkdir -p "$REPORT_DIR"
+  script:
+    - trivy --config config/trivy.yaml fs --scanners vuln,misconfig,secret,license --license-full --format json --output "$REPORT_DIR/trivy.json" .
+    - trivy --config config/trivy.yaml fs --format cyclonedx --output "$REPORT_DIR/sbom.cdx.json" .
+  artifacts:
+    when: always
+    paths: [build/reports/trivy.json, build/reports/sbom.cdx.json]
+    expire_in: 30 days
+
+sca-release:
+  extends: .release-rules
+  stage: security
+  image:
+    name: "$TRIVY_IMAGE"
+    entrypoint: [""]
+  needs:
+    - job: validate-image-pins
+    - job: build-release
+      artifacts: true
+  before_script:
+    - mkdir -p "$REPORT_DIR" "$ATTESTATION_DIR"
+    - test -n "$IMMUTABLE_IMAGE_REF"
+    - python -m pip install --no-deps .
+  script:
+    - test "$(trivy --version | sed -n 's/^Version:[[:space:]]*//p' | head -n 1)" = "$TRIVY_VERSION"
+    - security_started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    - security_status=0
+    - trivy --config config/trivy.yaml image --scanners vuln,misconfig,secret,license --license-full --format json --output "$REPORT_DIR/trivy.json" "$IMMUTABLE_IMAGE_REF" || security_status=$?
+    - security_finished_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    - sbom_started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    - sbom_status=0
+    - trivy --config config/trivy.yaml image --format cyclonedx --output "$REPORT_DIR/sbom.cdx.json" "$IMMUTABLE_IMAGE_REF" || sbom_status=$?
+    - sbom_finished_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    - test -f "$TRIVY_DB_METADATA_PATH"
+    - test -n "$FINGUARD_SCAN_ATTESTATION_KEY"
+    - security_completion=--incomplete
+    - test "$security_status" -eq 0 && security_completion=--complete
+    - sbom_completion=--incomplete
+    - test "$sbom_status" -eq 0 && sbom_completion=--complete
+    - python -m finguard attest-report --report "$REPORT_DIR/trivy.json" --output "$ATTESTATION_DIR/trivy.json" --scanner trivy --category sca --scanner-version "$TRIVY_VERSION" --scanner-uri "$TRIVY_IMAGE" --source-commit "$CI_COMMIT_SHA" --image-digest "$IMAGE_DIGEST" --ruleset config/trivy.yaml --database "$TRIVY_DB_METADATA_PATH" --command "trivy image security" --ci-job-id "$CI_JOB_ID:sca-release" --runner-id gitlab:onprem-protected --exit-code "$security_status" "$security_completion" --started-at "$security_started_at" --finished-at "$security_finished_at" --signing-key-env FINGUARD_SCAN_ATTESTATION_KEY --key-id onprem-scan-attestor-v1
+    - python -m finguard attest-report --report "$REPORT_DIR/sbom.cdx.json" --output "$ATTESTATION_DIR/cyclonedx.json" --scanner cyclonedx --category sca --scanner-version "$TRIVY_VERSION" --scanner-uri "$TRIVY_IMAGE" --source-commit "$CI_COMMIT_SHA" --image-digest "$IMAGE_DIGEST" --ruleset config/trivy.yaml --database "$TRIVY_DB_METADATA_PATH" --command "trivy image cyclonedx" --ci-job-id "$CI_JOB_ID:sca-release" --runner-id gitlab:onprem-protected --exit-code "$sbom_status" "$sbom_completion" --started-at "$sbom_started_at" --finished-at "$sbom_finished_at" --signing-key-env FINGUARD_SCAN_ATTESTATION_KEY --key-id onprem-scan-attestor-v1
+    - test "$security_status" -eq 0
+    - test "$sbom_status" -eq 0
+  artifacts:
+    when: always
+    paths: [build/reports/trivy.json, build/reports/sbom.cdx.json, build/attestations/trivy.json, build/attestations/cyclonedx.json]
+    expire_in: 30 days
+
+dast-release:
+  extends: .release-rules
+  stage: security
+  image: "$DAST_RUNNER_IMAGE"
+  needs:
+    - job: validate-image-pins
+    - job: build-release
+      artifacts: true
+  before_script:
+    - mkdir -p "$REPORT_DIR" "$ATTESTATION_DIR"
+    - test -n "$IMMUTABLE_IMAGE_REF"
+    - python -m pip install --no-deps .
+    - cp config/zap-rules.conf "$REPORT_DIR/zap-rules.conf"
+  script:
+    - podman network create "finguard-${CI_PIPELINE_ID}-${CI_JOB_ID}"
+    - podman run --detach --name "finguard-target-${CI_PIPELINE_ID}-${CI_JOB_ID}" --network "finguard-${CI_PIPELINE_ID}-${CI_JOB_ID}" --pull=never "$IMMUTABLE_IMAGE_REF"
+    - for attempt in $(seq 1 30); do podman exec "finguard-target-${CI_PIPELINE_ID}-${CI_JOB_ID}" python -m sample_service.healthcheck && break; sleep 1; done
+    - podman exec "finguard-target-${CI_PIPELINE_ID}-${CI_JOB_ID}" python -m sample_service.healthcheck
+    - zap_target="http://finguard-target-${CI_PIPELINE_ID}-${CI_JOB_ID}:8080/"
+    - scan_started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    - zap_status=0
+    - podman run --rm --network "finguard-${CI_PIPELINE_ID}-${CI_JOB_ID}" --volume "$CI_PROJECT_DIR/$REPORT_DIR:/zap/wrk:rw" --pull=never "$ZAP_IMAGE" zap-baseline.py -t "$zap_target" -c zap-rules.conf -J zap.json || zap_status=$?
+    - scan_finished_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    - test -n "$FINGUARD_SCAN_ATTESTATION_KEY"
+    - completion=--incomplete
+    - test "$zap_status" -le 2 && completion=--complete
+    - python -m finguard attest-report --report "$REPORT_DIR/zap.json" --output "$ATTESTATION_DIR/zap.json" --scanner owasp-zap --category dast --scanner-version "$ZAP_VERSION" --scanner-uri "$ZAP_IMAGE" --source-commit "$CI_COMMIT_SHA" --image-digest "$IMAGE_DIGEST" --ruleset config/zap-rules.conf --command "zap-baseline.py -c zap-rules.conf" --ci-job-id "$CI_JOB_ID:dast-release" --runner-id gitlab:onprem-protected --exit-code "$zap_status" "$completion" --target-uri "$zap_target" --started-at "$scan_started_at" --finished-at "$scan_finished_at" --signing-key-env FINGUARD_SCAN_ATTESTATION_KEY --key-id onprem-scan-attestor-v1
+    - test "$zap_status" -le 2
+  after_script:
+    - podman rm --force "finguard-target-${CI_PIPELINE_ID}-${CI_JOB_ID}" 2>/dev/null || true
+    - podman network rm "finguard-${CI_PIPELINE_ID}-${CI_JOB_ID}" 2>/dev/null || true
+  artifacts:
+    when: always
+    paths: [build/reports/zap.json, build/attestations/zap.json]
+    expire_in: 30 days
+
+quality-gate-merge-request:
+  extends: .merge-request-rules
+  stage: gate
+  image: "$PYTHON_IMAGE"
+  needs:
+    - job: source-quality
+      artifacts: true
+    - job: sast
+      artifacts: true
+    - job: sca-merge-request
+      artifacts: true
+  script:
+    - python -m pip install --no-deps .
+    - |
+      gate_status=0
+      python -m finguard gate --policy policies/merge-request.toml --reports "$REPORT_DIR" --expected-commit "$CI_COMMIT_SHA" --output "$EVIDENCE_DIR" || gate_status=$?
+      if [ -f "$EVIDENCE_DIR/decision.json" ]; then
+        python -m finguard export --decision "$EVIDENCE_DIR/decision.json" --format gitlab-code-quality --output build/gl-code-quality-report.json
+      fi
+      exit "$gate_status"
+  artifacts:
+    when: always
+    paths: [build/evidence/, build/gl-code-quality-report.json]
+    reports:
+      codequality: build/gl-code-quality-report.json
+    expire_in: 30 days
+
+attest-release:
+  extends: .release-rules
+  stage: attest
+  image: "$PYTHON_IMAGE"
+  needs:
+    - job: build-release
+      artifacts: true
+    - job: source-quality
+      artifacts: true
+    - job: sast
+      artifacts: true
+    - job: sca-release
+      artifacts: true
+    - job: dast-release
+      artifacts: true
+  before_script:
+    - python -m pip install --no-deps .
+  script:
+    - python -m finguard subject --service "$RELEASE_SERVICE" --repository "$CI_PROJECT_URL.git" --commit "$CI_COMMIT_SHA" --image "$IMMUTABLE_IMAGE_REF" --sbom "$REPORT_DIR/sbom.cdx.json" --environment production --cluster "$KUBE_CONTEXT" --namespace "$KUBE_NAMESPACE" --deployment "$KUBE_DEPLOYMENT" --container "$KUBE_CONTAINER" --healthcheck-url "$RELEASE_HEALTHCHECK_URL" --builder-id gitlab:onprem-protected --output build/release-subject.json
+  artifacts:
+    paths: [build/release-subject.json]
+    expire_in: 30 days
+
+quality-gate-release:
+  extends: .release-rules
+  stage: gate
+  image: "$GATE_RUNNER_IMAGE"
+  needs:
+    - job: build-release
+      artifacts: true
+    - job: source-quality
+      artifacts: true
+    - job: sast
+      artifacts: true
+    - job: sca-release
+      artifacts: true
+    - job: dast-release
+      artifacts: true
+    - job: attest-release
+      artifacts: true
+  resource_group: finguard-release-approval
+  when: manual
+  script:
+    - test -n "$CHANGE_MANIFEST_PATH"
+    - test -f "$CHANGE_MANIFEST_PATH"
+    - test -n "$APPROVAL_ATTESTATION_PATH"
+    - test -f "$APPROVAL_ATTESTATION_PATH"
+    - test -n "$APPROVAL_ATTESTATION_BUNDLE_PATH"
+    - test -f "$APPROVAL_ATTESTATION_BUNDLE_PATH"
+    - test -f "$FINGUARD_APPROVAL_COSIGN_PUBLIC_KEY"
+    - test -n "$FINGUARD_EVIDENCE_COSIGN_SIGNING_KEY"
+    - test -f "$FINGUARD_EVIDENCE_COSIGN_PUBLIC_KEY"
+    - python -m pip install --no-deps .
+    - cosign version
+    - |
+      set -- python -m finguard gate --policy policies/financial-release.toml --reports "$REPORT_DIR" --attestations "$ATTESTATION_DIR" --attestation-key-env FINGUARD_SCAN_ATTESTATION_KEY --change "$CHANGE_MANIFEST_PATH" --approval-attestation "$APPROVAL_ATTESTATION_PATH" --approval-cosign-bundle "$APPROVAL_ATTESTATION_BUNDLE_PATH" --approval-cosign-verification-key "$FINGUARD_APPROVAL_COSIGN_PUBLIC_KEY" --approval-cosign-key-id onprem-itsm-cosign-v1 --subject build/release-subject.json --expected-commit "$CI_COMMIT_SHA" --output "$EVIDENCE_DIR" --cosign-signing-key "$FINGUARD_EVIDENCE_COSIGN_SIGNING_KEY"
+      if [ -n "$VEX_ATTESTATION_PATH" ]; then
+        test -f "$VEX_ATTESTATION_PATH"
+        test -f "$VEX_ATTESTATION_BUNDLE_PATH"
+        test -f "$FINGUARD_VEX_COSIGN_PUBLIC_KEY"
+        set -- "$@" --vex-attestation "$VEX_ATTESTATION_PATH" --vex-cosign-bundle "$VEX_ATTESTATION_BUNDLE_PATH" --vex-cosign-verification-key "$FINGUARD_VEX_COSIGN_PUBLIC_KEY" --vex-cosign-key-id onprem-vex-cosign-v1
+      fi
+      "$@"
+    - python -m finguard verify --evidence "$EVIDENCE_DIR" --cosign-verification-key "$FINGUARD_EVIDENCE_COSIGN_PUBLIC_KEY"
+    - python -m finguard export --decision "$EVIDENCE_DIR/decision.json" --format prometheus --output build/finguard.prom
+  artifacts:
+    when: always
+    paths: [build/evidence/, build/finguard.prom]
+    expire_in: 1 year
+
+deploy-production:
+  extends: .release-rules
+  stage: deploy
+  image: "$DEPLOY_RUNNER_IMAGE"
+  needs:
+    - job: build-release
+      artifacts: true
+    - job: quality-gate-release
+      artifacts: true
+  environment: production
+  resource_group: finguard-production
+  when: manual
+  script:
+    - test -n "$IMMUTABLE_IMAGE_REF"
+    - python -m pip install --no-deps .
+    - test -f "$FINGUARD_EVIDENCE_COSIGN_PUBLIC_KEY"
+    - test -n "$FINGUARD_DEPLOYMENT_COSIGN_SIGNING_KEY"
+    - cosign version
+    - kubectl version --client=true
+    - python -m finguard deploy --cluster "$KUBE_CONTEXT" --namespace "$KUBE_NAMESPACE" --deployment "$KUBE_DEPLOYMENT" --container "$KUBE_CONTAINER" --image "$IMMUTABLE_IMAGE_REF" --expected-policy-id "$RELEASE_POLICY_ID" --expected-policy-version "$RELEASE_POLICY_VERSION" --expected-policy-sha256 "$RELEASE_POLICY_SHA256" --evidence "$EVIDENCE_DIR" --output build/deployment-result.json --cosign-verification-key "$FINGUARD_EVIDENCE_COSIGN_PUBLIC_KEY" --require-signature --result-cosign-signing-key "$FINGUARD_DEPLOYMENT_COSIGN_SIGNING_KEY" --result-cosign-bundle build/deployment-result.sigstore.json
+  artifacts:
+    when: always
+    paths: [build/deployment-result.json, build/deployment-result.sigstore.json]
+    expire_in: 1 year

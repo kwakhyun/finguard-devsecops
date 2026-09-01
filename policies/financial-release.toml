@@ -1,0 +1,123 @@
+[metadata]
+id = "FIN-SW-DEVSECOPS-RELEASE"
+version = "5.1.0"
+name = "금융 서비스 보호 브랜치 릴리스 기준"
+owner = "SW Quality Engineering"
+
+[gates]
+required_categories = ["lint", "test", "sast", "sca", "dast"]
+required_scanners = ["ruff", "junit", "coverage.py", "semgrep", "trivy", "cyclonedx", "owasp-zap"]
+block_severities = ["critical", "high"]
+min_coverage_percent = 85.0
+max_test_failures = 0
+minimum_test_count = 1
+fail_on_scanner_error = true
+fail_on_unknown_severity = true
+require_fixes_for_blocking_vulnerabilities = true
+minimum_sbom_components = 1
+
+[gates.max_findings]
+medium = 0
+low = 10
+unknown = 0
+
+[licenses]
+allowed = [
+  "0BSD",
+  "Apache-2.0",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "MIT",
+  "Python-2.0",
+]
+denied = ["AGPL-3.0-only", "AGPL-3.0-or-later", "GPL-3.0-only", "SSPL-1.0"]
+review_required = ["GPL-2.0-only", "LGPL-2.1-only", "LGPL-3.0-only", "MPL-2.0"]
+allow_unknown = false
+
+[change]
+required = true
+allowed_types = ["CB", "SR"]
+minimum_approvals = 2
+require_rollback_plan = true
+require_separation_of_duties = true
+require_deployment_window = true
+maximum_deployment_window_hours = 4
+maximum_evidence_age_hours = 4
+approval_roles = ["security", "release_manager"]
+require_approval_after_build = true
+require_approval_attestation = true
+allowed_approval_issuers = ["itsm://change-management"]
+allowed_approval_key_ids = ["onprem-itsm-cosign-v1"]
+allowed_approval_signature_methods = ["cosign"]
+
+[provenance]
+require_release_subject = true
+require_scan_attestations = true
+require_signed_attestations = true
+max_report_age_hours = 24
+clock_skew_minutes = 5
+artifact_bound_categories = ["sca", "dast"]
+allowed_runner_ids = ["gitlab:onprem-protected", "jenkins:onprem-release"]
+allowed_key_ids = ["onprem-scan-attestor-v1"]
+require_database_for_scanners = ["trivy", "cyclonedx"]
+max_database_age_hours = 72
+
+[provenance.allowed_exit_codes]
+ruff = [0]
+junit = [0, 1]
+"coverage.py" = [0, 1]
+semgrep = [0]
+trivy = [0]
+cyclonedx = [0]
+owasp-zap = [0, 1, 2]
+
+[provenance.allowed_command_sha256]
+ruff = [
+  "c7129a660b55a886364268a85233a4af76b1ebe68969786f3b5f842b21435536",
+  "95948637abe4c745b14b8800775057d6f7a63d4e20d5bc0950a398009e7ac170",
+]
+junit = [
+  "901b7e12003218896b991b7405638019e19ad2665bc90cabfd3876d3d4f6105b",
+  "5593fdd516a507dbb3b87caa92639dbc57e69007a1cedba2d128ed05b4c91f38",
+]
+"coverage.py" = [
+  "4ef5eef96cdfc386eec33251f8dd28efe6f3d3d185f31a6bbcb1aa5dd9bb1850",
+  "2aca1e5d7f011a6cd6ec1c892ef00d96ecc6eeb163a7621bbbe0381457061b36",
+]
+semgrep = [
+  "24be8d8484f3dbb7f686df1aa6b28d9c96e3823f11d539083c0e24c08a62f916",
+  "d8dfb1b7dafd8ffd1ddd5b422e7253c15d19aa49bcc914478aab1aa8fd753c3e",
+]
+trivy = ["04e10128a7a8f95ccb6f33a27db54f3228b5e9dea9c12f5213d17b7cd1d1d92d"]
+cyclonedx = ["6a8566cef65ad6187c7b09f28f4c2721950ff6bdaee8eeca562ce8547ecad695"]
+owasp-zap = ["98887f20ff78c01dd72c0738a4766a7bbbf086358680fd017e6ee7e663f653db"]
+
+[provenance.ruleset_sha256]
+ruff = "ced4f73155d1d7d8cb46c4f7ca6d143657c7e0e7f384c9903393e90f6e97556e"
+junit = "ced4f73155d1d7d8cb46c4f7ca6d143657c7e0e7f384c9903393e90f6e97556e"
+"coverage.py" = "ced4f73155d1d7d8cb46c4f7ca6d143657c7e0e7f384c9903393e90f6e97556e"
+semgrep = "ab7bbc5cb4ace9f579c59edf90ee41188dc39120b409339d08c4ebf73b943017"
+trivy = "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+cyclonedx = "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+owasp-zap = "adbd69784c025d1fa7a1664a3239190c714b0570cb318e351882dcb45f14aef0"
+
+[exception_controls]
+allowed_categories = ["lint", "sast", "sca", "dast", "iac"]
+non_exceptionable_severities = ["critical"]
+max_validity_days = 30
+max_renewals = 0
+min_reason_length = 20
+require_compensating_controls = true
+require_scope = true
+
+[vex]
+accepted_states = ["not_affected", "false_positive", "resolved"]
+require_justification = true
+minimum_detail_length = 20
+require_signed_attestation = true
+allowed_issuers = ["vex://security-review"]
+allowed_key_ids = ["onprem-vex-cosign-v1"]
+allowed_signature_methods = ["cosign"]
+max_validity_days = 30
+non_suppressible_severities = ["critical"]

@@ -1,0 +1,14 @@
+{
+  "SchemaVersion": 2,
+  "Results": [
+    {
+      "Target": "requirements.lock",
+      "Class": "lang-pkgs",
+      "Type": "pip",
+      "Vulnerabilities": [],
+      "Licenses": [
+        {"Name": "MIT", "PkgName": "example-library", "PkgVersion": "1.0.0"}
+      ]
+    }
+  ]
+}

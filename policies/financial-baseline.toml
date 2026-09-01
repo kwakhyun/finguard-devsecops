@@ -1,0 +1,83 @@
+[metadata]
+id = "FIN-SW-DEVSECOPS-BASELINE"
+version = "5.1.0"
+name = "금융 서비스 SW 품질 및 보안 기준"
+owner = "SW Quality Engineering"
+
+[gates]
+required_categories = ["lint", "test", "sast", "sca", "dast"]
+required_scanners = ["ruff", "junit", "coverage.py", "semgrep", "trivy", "cyclonedx", "owasp-zap"]
+block_severities = ["critical", "high"]
+min_coverage_percent = 85.0
+max_test_failures = 0
+minimum_test_count = 1
+fail_on_scanner_error = true
+fail_on_unknown_severity = true
+require_fixes_for_blocking_vulnerabilities = true
+minimum_sbom_components = 1
+
+[gates.max_findings]
+medium = 0
+low = 10
+unknown = 0
+
+[licenses]
+allowed = [
+  "0BSD",
+  "Apache-2.0",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "MIT",
+  "Python-2.0",
+]
+denied = ["AGPL-3.0-only", "AGPL-3.0-or-later", "GPL-3.0-only", "SSPL-1.0"]
+review_required = ["GPL-2.0-only", "LGPL-2.1-only", "LGPL-3.0-only", "MPL-2.0"]
+allow_unknown = false
+
+[change]
+required = true
+allowed_types = ["CB", "SR"]
+minimum_approvals = 2
+require_rollback_plan = true
+require_separation_of_duties = true
+require_deployment_window = true
+maximum_deployment_window_hours = 4
+maximum_evidence_age_hours = 24
+approval_roles = ["security", "release_manager"]
+require_approval_after_build = true
+require_approval_attestation = false
+allowed_approval_issuers = []
+allowed_approval_key_ids = []
+allowed_approval_signature_methods = ["hmac-sha256", "cosign"]
+
+[provenance]
+require_release_subject = true
+require_scan_attestations = false
+require_signed_attestations = false
+max_report_age_hours = 24
+clock_skew_minutes = 5
+artifact_bound_categories = ["sca", "dast"]
+allowed_runner_ids = []
+allowed_key_ids = []
+require_database_for_scanners = []
+
+[exception_controls]
+allowed_categories = ["lint", "sast", "sca", "dast", "iac"]
+non_exceptionable_severities = ["critical"]
+max_validity_days = 30
+max_renewals = 0
+min_reason_length = 20
+require_compensating_controls = true
+require_scope = true
+
+[vex]
+accepted_states = ["not_affected", "false_positive", "resolved"]
+require_justification = true
+minimum_detail_length = 20
+require_signed_attestation = true
+allowed_issuers = ["vex://security-review"]
+allowed_key_ids = ["onprem-vex-cosign-v1"]
+allowed_signature_methods = ["cosign"]
+max_validity_days = 30
+non_suppressible_severities = ["critical"]

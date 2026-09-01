@@ -1,0 +1,19 @@
+# Default application review
+* @sw-devops-reviewers
+
+# Changes that can alter release decisions require both quality and security review.
+/finguard/ @sw-quality-owners @security-reviewers
+/policies/ @sw-quality-owners @security-reviewers
+/config/ @sw-quality-owners @security-reviewers
+/.semgrep/ @sw-quality-owners @security-reviewers
+/.gitlab/CODEOWNERS @release-engineering @security-reviewers
+/.gitlab/merge_request_templates/ @sw-quality-owners @security-reviewers
+/.gitignore @release-engineering @security-reviewers
+/.dockerignore @release-engineering @security-reviewers
+/pyproject.toml @sw-quality-owners @security-reviewers
+/requirements-dev.lock @release-engineering @security-reviewers
+/Dockerfile @release-engineering @security-reviewers
+/infra/ @release-engineering @security-reviewers
+/scripts/ @release-engineering @security-reviewers
+/.gitlab-ci.yml @release-engineering @security-reviewers
+/Jenkinsfile @release-engineering @security-reviewers

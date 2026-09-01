@@ -1,0 +1,17 @@
+{
+  "version": "1.0",
+  "results": [
+    {
+      "check_id": "finguard.python.subprocess-shell-true",
+      "path": "service/deploy.py",
+      "start": {"line": 21, "col": 5},
+      "end": {"line": 21, "col": 48},
+      "extra": {
+        "message": "shell=True 사용은 명령어 삽입 위험이 있습니다.",
+        "severity": "ERROR",
+        "metadata": {"cwe": ["CWE-78"], "confidence": "HIGH"}
+      }
+    }
+  ],
+  "errors": []
+}

@@ -1,0 +1,21 @@
+{
+  "@version": "2.15.0",
+  "site": [
+    {
+      "@name": "http://sample-service:8080",
+      "alerts": [
+        {
+          "pluginid": "10020",
+          "riskcode": "2",
+          "confidence": "3",
+          "alert": "Missing Anti-clickjacking Header",
+          "cweid": "1021",
+          "solution": "Set X-Frame-Options or CSP frame-ancestors.",
+          "instances": [
+            {"uri": "http://sample-service:8080/", "method": "GET", "param": ""}
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+name: finguard-onprem
+
+services:
+  sonar-db:
+    image: ${POSTGRES_IMAGE:?POSTGRES_IMAGE must be an immutable @sha256 reference}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${SONAR_DB_NAME:-sonar}
+      POSTGRES_USER: ${SONAR_DB_USER:-sonar}
+      POSTGRES_PASSWORD: ${SONAR_DB_PASSWORD:?SONAR_DB_PASSWORD must be set}
+    volumes:
+      - sonar-db-data:/var/lib/postgresql/data
+    networks: [quality]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SONAR_DB_USER:-sonar} -d ${SONAR_DB_NAME:-sonar}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  sonarqube:
+    image: ${SONARQUBE_IMAGE:?SONARQUBE_IMAGE must be an immutable @sha256 reference}
+    restart: unless-stopped
+    depends_on:
+      sonar-db:
+        condition: service_healthy
+    environment:
+      SONAR_JDBC_URL: jdbc:postgresql://sonar-db:5432/${SONAR_DB_NAME:-sonar}
+      SONAR_JDBC_USERNAME: ${SONAR_DB_USER:-sonar}
+      SONAR_JDBC_PASSWORD: ${SONAR_DB_PASSWORD:?SONAR_DB_PASSWORD must be set}
+    ports:
+      - "127.0.0.1:${SONAR_PORT:-9000}:9000"
+    volumes:
+      - sonar-data:/opt/sonarqube/data
+      - sonar-extensions:/opt/sonarqube/extensions
+      - sonar-logs:/opt/sonarqube/logs
+    networks: [quality]
+
+  sample-service:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    profiles: [dast]
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,noexec,nosuid,nodev
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    ports:
+      - "127.0.0.1:8080:8080"
+    networks: [quality]
+
+networks:
+  quality:
+    internal: true
+
+volumes:
+  sonar-db-data:
+  sonar-data:
+  sonar-extensions:
+  sonar-logs:

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites name="pytest tests">
+  <testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="1.41">
+    <testcase classname="tests.test_transfer" name="test_rejects_duplicate_request">
+      <failure message="duplicate request was accepted">assert 201 == 409</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

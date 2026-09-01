@@ -1,0 +1,38 @@
+[change]
+id = "CB-YYYY-NNNN"
+type = "CB"
+service = "service-name"
+environment = "production"
+summary = "변경 목적과 범위를 한 문장으로 작성"
+risk = "medium"
+commit_sha = "0000000000000000000000000000000000000000"
+requester = "requester@company.example"
+deployer = "deployer@company.example"
+rollback_plan = "이전 이미지 digest로 rollout을 되돌리고 정상 지표를 확인하는 구체적인 절차"
+window_start = 2026-09-01T22:00:00+09:00
+window_end = 2026-09-01T23:00:00+09:00
+
+[release]
+service = "service-name"
+repository = "https://git.company.example/group/service-name.git"
+commit_sha = "0000000000000000000000000000000000000000"
+image = "registry.company.example/group/service@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+sbom_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
+environment = "production"
+cluster = "onprem-prod-01"
+namespace = "service-prod"
+deployment = "service-name"
+container = "service"
+healthcheck_url = "http://service-name.service-prod.svc.cluster.local:8080/health"
+builder_id = "gitlab:onprem-protected"
+built_at = 2026-09-01T00:00:00Z
+
+[[approvals]]
+approver = "security-reviewer@company.example"
+role = "security"
+approved_at = 2026-09-01T09:00:00+09:00
+
+[[approvals]]
+approver = "release-manager@company.example"
+role = "release_manager"
+approved_at = 2026-09-01T10:00:00+09:00

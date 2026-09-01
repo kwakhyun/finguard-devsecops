@@ -1,1 +1,5 @@
+# Trivy scanner selection, output format, and license mode vary by pipeline job
+# and are therefore passed explicitly on the command line. FinGuard attests both
+# this shared configuration hash and the approved command hash, so an empty map
+# here is intentional rather than a placeholder.
 {}

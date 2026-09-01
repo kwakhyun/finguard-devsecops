@@ -1,45 +1,61 @@
-# Changelog
+# 변경 이력
 
 이 문서는 FinGuard 공개 포트폴리오의 주요 변경을 기록합니다.
 
+## [0.6.3] - 2026-09-01
+
+### 개선
+
+- 테스트 실패와 Semgrep 탐지 결과를 공개 CI의 FinGuard 정책 게이트가 최종 판정하도록 종료 코드 처리 통일
+- Python 및 GitHub Actions 의존성을 주간 주기로 점검하는 Dependabot 구성 추가
+- 공유 Trivy 설정이 명령어 해시와 함께 검증되는 의도적인 기본값임을 문서화
+- 포트폴리오 전체의 어색한 표현과 혼재된 용어를 자연스러운 한국어로 정리
+- 보호된 `main`, 필수 CI 검사, Dependabot 보안 업데이트를 공개 저장소 운영 통제에 반영
+
+### 검증
+
+- 194개 회귀 테스트, Ruff, Mypy, 85% 이상 커버리지 기준 통과
+- 정상 릴리스 PASS 증적 검증과 위험 변경 차단 E2E 시나리오 통과
+
 ## [0.6.2] - 2026-09-01
 
-### Fixed
+### 수정
 
 - Trivy 파일 라이선스 보고서와 CycloneDX `metadata.component` 형식 지원
-- PATH의 Python 명령을 E2E 데모에서 안전하게 해석하도록 러너 호환성 개선
+- PATH에 등록된 Python 명령을 E2E 데모에서 안전하게 해석하도록 Runner 호환성 개선
 - `upload-artifact`를 Node.js 24 기반 공식 릴리스의 불변 커밋으로 갱신
-- 게이트 결과에 위반 코드와 메시지를 출력해 CI 실패 진단성 강화
+- 게이트 결과에 위반 코드와 메시지를 출력해 CI 실패 원인을 더 쉽게 진단하도록 개선
 
-### Verified
+### 검증
 
 - 192개 회귀 테스트와 실제 Semgrep, Trivy, OWASP ZAP 보고서 재평가 통과
 
 ## [0.6.1] - 2026-09-01
 
-### Fixed
+### 수정
 
-- 커밋된 CycloneDX SBOM과 릴리스 주체, 변경 승인 정보의 digest 정합성 복구
-- 실제 Semgrep 규칙과 보호 릴리스 정책의 ruleset digest 동기화
+- 커밋된 CycloneDX SBOM, 릴리스 대상, 변경 승인 정보의 다이제스트 일관성 복구
+- 실제 Semgrep 규칙과 보호 릴리스 정책의 규칙 세트 다이제스트 동기화
 - 빈 Ruff 보고서에서도 변조 검증이 유효하도록 회귀 테스트 보강
-- GitHub Actions의 checkout과 Python 설정을 Node.js 24 기반 공식 릴리스로 갱신
+- GitHub Actions의 체크아웃과 Python 설정을 Node.js 24 기반 공식 릴리스로 갱신
 
 ## [0.6.0] - 2026-09-01
 
-### Added
+### 추가
 
 - SAST, SCA, DAST, 품질 결과를 결합하는 Python 정책 게이트
-- 릴리스 대상, 외부 승인, scan provenance와 감사 증적 결속
+- 스캔 실행 증명서와 감사 증적을 릴리스 대상 및 외부 승인에 결속
 - GitLab CI, Jenkins, GitHub Actions 파이프라인
-- 서명된 증적 검증, Kubernetes 배포 preflight와 자동 rollback
-- 정책 예외, SPDX 라이선스, VEX, shadow policy와 Prometheus export
+- 서명된 증적 검증, Kubernetes 배포 사전 권한 검사와 자동 롤백
+- 정책 예외, SPDX 라이선스, VEX, 섀도 정책 비교와 Prometheus 지표 내보내기
 
-### Verified
+### 검증
 
 - Ruff와 Mypy 통과
-- 190개 회귀 테스트와 85% 이상 coverage
+- 190개 회귀 테스트와 85% 이상 커버리지
 - 정상 릴리스 PASS 증적 검증과 위험 릴리스 차단
 
+[0.6.3]: https://github.com/kwakhyun/finguard-devsecops/tree/v0.6.3
 [0.6.2]: https://github.com/kwakhyun/finguard-devsecops/tree/v0.6.2
 [0.6.1]: https://github.com/kwakhyun/finguard-devsecops/tree/v0.6.1
 [0.6.0]: https://github.com/kwakhyun/finguard-devsecops/tree/v0.6.0

@@ -1,6 +1,6 @@
 [metadata]
 id = "FIN-SW-DEVSECOPS-RELEASE"
-version = "5.1.0"
+version = "5.1.1"
 name = "금융 서비스 보호 브랜치 릴리스 기준"
 owner = "SW Quality Engineering"
 
@@ -94,12 +94,12 @@ cyclonedx = ["6a8566cef65ad6187c7b09f28f4c2721950ff6bdaee8eeca562ce8547ecad695"]
 owasp-zap = ["98887f20ff78c01dd72c0738a4766a7bbbf086358680fd017e6ee7e663f653db"]
 
 [provenance.ruleset_sha256]
-ruff = "d00e40a2f5d5ba57629451bc0fdad0c0f157c21f97db42dcefd4794e43d1dd25"
-junit = "d00e40a2f5d5ba57629451bc0fdad0c0f157c21f97db42dcefd4794e43d1dd25"
-"coverage.py" = "d00e40a2f5d5ba57629451bc0fdad0c0f157c21f97db42dcefd4794e43d1dd25"
+ruff = "6ce26bb19a62bdb4370882f9acc49dc577d21924d54f66f5cd6a79bb3f7d55f3"
+junit = "6ce26bb19a62bdb4370882f9acc49dc577d21924d54f66f5cd6a79bb3f7d55f3"
+"coverage.py" = "6ce26bb19a62bdb4370882f9acc49dc577d21924d54f66f5cd6a79bb3f7d55f3"
 semgrep = "dcecd5df23ece14c3c384c524c9dfe687fcd76bb1e32e4b8922aaad6552cba74"
-trivy = "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
-cyclonedx = "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+trivy = "76064b544702901af6a8dfd25dbfcae105b75a5dd74d71a936dc4b0350496a24"
+cyclonedx = "76064b544702901af6a8dfd25dbfcae105b75a5dd74d71a936dc4b0350496a24"
 owasp-zap = "adbd69784c025d1fa7a1664a3239190c714b0570cb318e351882dcb45f14aef0"
 
 [exception_controls]

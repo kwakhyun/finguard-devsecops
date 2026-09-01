@@ -15,7 +15,7 @@
 # service = "service-name"
 # environment = "production"
 # policy_id = "FIN-SW-DEVSECOPS-RELEASE"
-# policy_version = "5.1.0"
+# policy_version = "5.1.1"
 # compensating_controls = "외부 접속을 허용 목록으로 제한하고 일일 탐지 리포트를 검토한다."
 # renewal_count = 0
 # revoked = false

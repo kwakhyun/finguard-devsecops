@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "finguard-devsecops"
-version = "0.6.2"
-description = "Policy-as-code DevSecOps quality gate for regulated on-premise delivery"
+version = "0.6.3"
+description = "Policy-as-code DevSecOps quality gate for regulated on-premises delivery"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }

@@ -805,12 +805,12 @@ def _render_summary(result: GateResult) -> str:
         f"- 정책: `{result.policy_id}` v{result.policy_version}",
         f"- 변경 요청: `{result.change_id or '없음'}`",
         f"- 평가 시각: {result.evaluated_at}",
-        f"- 활성 이슈: {len(result.active_findings)}건",
+        f"- 조치 대상 이슈: {len(result.active_findings)}건",
         f"- 승인된 예외: {len(result.excepted_findings)}건",
         f"- VEX로 영향 없음 확인: {len(result.vexed_findings)}건",
         (
             "- 외부 승인 서명 검증: "
-            f"{'yes' if result.metrics.get('approval_attestation_verified') else 'no'}"
+            f"{'완료' if result.metrics.get('approval_attestation_verified') else '미확인'}"
         ),
         (
             f"- 릴리스 대상 SHA-256: `{result.release_subject.digest}`"
@@ -819,14 +819,14 @@ def _render_summary(result: GateResult) -> str:
         ),
         f"- 커버리지: {float(result.metrics.get('coverage_percent', 0)):.2f}%",
         "",
-        "## 심각도별 이슈",
+        "## 심각도별 탐지 결과",
         "",
         "| 심각도 | 건수 |",
         "| --- | ---: |",
     ]
     for severity in ("critical", "high", "medium", "low", "info", "unknown"):
         lines.append(f"| {severity} | {counts.get(severity, 0)} |")
-    lines.extend(["", "## 정책 위반", ""])
+    lines.extend(["", "## 정책 위반 코드와 원본 메시지", ""])
     if result.violations:
         lines.extend(f"- `{item.code}`: {item.message}" for item in result.violations)
     else:

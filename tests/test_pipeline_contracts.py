@@ -167,3 +167,33 @@ def test_public_portfolio_ci_runs_real_security_tools_with_immutable_inputs(
         references = [line.strip() for line in workflow.splitlines() if action in line]
         assert references
         assert all("@v" not in line and "@main" not in line for line in references)
+
+
+def test_public_portfolio_ci_routes_findings_to_finguard_without_hiding_tool_errors(
+    project_root: Path,
+) -> None:
+    workflow = (project_root / ".github/workflows/portfolio-ci.yml").read_text(encoding="utf-8")
+    quality = workflow.split("- name: Generate quality reports", 1)[1].split(
+        "- name: Run Semgrep SAST", 1
+    )[0]
+    semgrep = workflow.split("- name: Run Semgrep SAST", 1)[1].split("- name: Run Trivy SCA", 1)[0]
+    gate = workflow.split("- name: Evaluate the real reports with FinGuard", 1)[1].split(
+        "- name: Preserve scanner reports", 1
+    )[0]
+
+    assert "pytest_status=0" in quality
+    assert "|| pytest_status=$?" in quality
+    assert 'test "$pytest_status" -le 1' in quality
+    assert "--error" not in semgrep
+    assert "gate_status=0" in gate
+    assert "|| gate_status=$?" in gate
+    assert 'test "$gate_status" -eq 0 || test "$gate_status" -eq 2' in gate
+    assert "python -m finguard verify" in gate
+    assert 'exit "$gate_status"' in gate
+
+
+def test_dependabot_tracks_python_and_github_actions_dependencies(project_root: Path) -> None:
+    dependabot = (project_root / ".github/dependabot.yml").read_text(encoding="utf-8")
+    assert 'package-ecosystem: "pip"' in dependabot
+    assert 'package-ecosystem: "github-actions"' in dependabot
+    assert dependabot.count('interval: "weekly"') == 2

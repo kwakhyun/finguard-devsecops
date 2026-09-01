@@ -83,15 +83,17 @@ jobs:
         run: |
           mkdir -p build/public-ci/reports build/public-ci/zap
           ruff check . --exit-zero --output-format=json --output-file=build/public-ci/reports/ruff.json
+          pytest_status=0
           pytest --junitxml=build/public-ci/reports/junit.xml \
-            --cov=finguard --cov-report=xml:build/public-ci/reports/coverage.xml
+            --cov=finguard --cov-report=xml:build/public-ci/reports/coverage.xml \
+            || pytest_status=$?
+          test "$pytest_status" -le 1
 
       - name: Run Semgrep SAST
         run: |
           "$RUNNER_TEMP/semgrep-venv/bin/semgrep" scan \
             --config .semgrep/secure-coding.yml \
             --metrics=off \
-            --error \
             --json \
             --output build/public-ci/reports/semgrep.json \
             .
@@ -140,13 +142,17 @@ jobs:
 
       - name: Evaluate the real reports with FinGuard
         run: |
+          gate_status=0
           python -m finguard gate \
             --policy policies/merge-request.toml \
             --reports build/public-ci/reports \
-            --output build/public-ci/evidence
+            --output build/public-ci/evidence \
+            || gate_status=$?
+          test "$gate_status" -eq 0 || test "$gate_status" -eq 2
           python -m finguard verify \
             --evidence build/public-ci/evidence \
             --allow-unsigned
+          exit "$gate_status"
 
       - name: Preserve scanner reports and gate evidence
         if: always()

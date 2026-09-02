@@ -373,7 +373,7 @@ def _handle_gate_snapshot(args: argparse.Namespace) -> int:
     exceptions = load_exceptions(args.exceptions)
     approval_attestation = _load_external_approval(args)
     vex_attestation = _load_external_vex(args)
-    evaluated_at = dt.datetime.now(dt.UTC)
+    evaluated_at = _utc_now()
     result = PolicyEngine(policy).evaluate(
         scans,
         exceptions=exceptions,
@@ -540,42 +540,81 @@ def _handle_verify(args: argparse.Namespace) -> int:
 
 def _handle_demo(args: argparse.Namespace) -> int:
     scenario = args.fixtures / args.scenario
-    gate_args = argparse.Namespace(
-        policy=args.policy,
-        shadow_policy=None,
-        reports=scenario / "reports",
-        report=[],
-        change=scenario / "change.toml",
-        subject=(scenario / "release-subject.json")
-        if (scenario / "release-subject.json").is_file()
-        else None,
-        exceptions=(scenario / "exceptions.toml")
-        if (scenario / "exceptions.toml").is_file()
-        else None,
-        expected_commit="",
-        attestations=None,
-        attestation_key_env="",
-        approval_attestation=None,
-        approval_key_env="",
-        approval_cosign_bundle=None,
-        approval_cosign_verification_key="",
-        approval_cosign_certificate_identity="",
-        approval_cosign_certificate_oidc_issuer="",
-        approval_cosign_key_id="",
-        vex_attestation=None,
-        vex_key_env="",
-        vex_cosign_bundle=None,
-        vex_cosign_verification_key="",
-        vex_cosign_certificate_identity="",
-        vex_cosign_certificate_oidc_issuer="",
-        vex_cosign_key_id="",
-        output=args.output / args.scenario,
-        signing_key_env=args.signing_key_env,
-        signing_key_id=args.signing_key_id,
-        cosign_signing_key="",
-        force=args.force,
+    with tempfile.TemporaryDirectory(prefix="finguard-demo-") as temporary:
+        change = _materialize_demo_change(
+            scenario / "change.toml",
+            Path(temporary).resolve() / "change.toml",
+            now=_utc_now(),
+        )
+        gate_args = argparse.Namespace(
+            policy=args.policy,
+            shadow_policy=None,
+            reports=scenario / "reports",
+            report=[],
+            change=change,
+            subject=(scenario / "release-subject.json")
+            if (scenario / "release-subject.json").is_file()
+            else None,
+            exceptions=(scenario / "exceptions.toml")
+            if (scenario / "exceptions.toml").is_file()
+            else None,
+            expected_commit="",
+            attestations=None,
+            attestation_key_env="",
+            approval_attestation=None,
+            approval_key_env="",
+            approval_cosign_bundle=None,
+            approval_cosign_verification_key="",
+            approval_cosign_certificate_identity="",
+            approval_cosign_certificate_oidc_issuer="",
+            approval_cosign_key_id="",
+            vex_attestation=None,
+            vex_key_env="",
+            vex_cosign_bundle=None,
+            vex_cosign_verification_key="",
+            vex_cosign_certificate_identity="",
+            vex_cosign_certificate_oidc_issuer="",
+            vex_cosign_key_id="",
+            output=args.output / args.scenario,
+            signing_key_env=args.signing_key_env,
+            signing_key_id=args.signing_key_id,
+            cosign_signing_key="",
+            force=args.force,
+        )
+        return _handle_gate(gate_args)
+
+
+def _utc_now() -> dt.datetime:
+    return dt.datetime.now(dt.UTC)
+
+
+def _materialize_demo_change(source: Path, output: Path, *, now: dt.datetime) -> Path:
+    """Give complete demo fixtures a short window around the current execution time."""
+
+    text = source.read_text(encoding="utf-8")
+    if "window_start =" not in text or "window_end =" not in text:
+        return source
+
+    start = now.astimezone(dt.UTC).replace(microsecond=0) - dt.timedelta(minutes=5)
+    end = start + dt.timedelta(hours=1)
+    replacements = {
+        "window_start =": f"window_start = {start.isoformat()}",
+        "window_end =": f"window_end = {end.isoformat()}",
+    }
+    rendered: list[str] = []
+    for line in text.splitlines():
+        rendered_line = line
+        for prefix, replacement in replacements.items():
+            if line.startswith(prefix):
+                rendered_line = replacement
+                break
+        rendered.append(rendered_line)
+    atomic_write_text(
+        output,
+        "\n".join(rendered) + "\n",
+        context="demo change manifest",
     )
-    return _handle_gate(gate_args)
+    return output
 
 
 def _handle_deploy(args: argparse.Namespace) -> int:

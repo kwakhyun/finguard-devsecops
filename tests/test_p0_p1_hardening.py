@@ -129,6 +129,7 @@ def _strict_release(
     tmp_path: Path,
     *,
     finished: dt.datetime | None = None,
+    change_path: Path | None = None,
 ) -> tuple[
     Policy,
     list[ScanResult],
@@ -149,7 +150,7 @@ def _strict_release(
         ),
     )
     subject = ReleaseSubject.load(scenario / "release-subject.json")
-    change = ChangeRequest.load(scenario / "change.toml")
+    change = ChangeRequest.load(change_path or scenario / "change.toml")
     reports = discover_reports(scenario / "reports")
     scans = [parse_report(path) for path in reports]
     key = b"scan-attestation-test-key"
@@ -379,10 +380,17 @@ def test_cli_creates_external_approval_adapter_envelope(
 
 
 def test_cli_loads_and_captures_strict_attestations(
-    project_root: Path, tmp_path: Path, monkeypatch, capsys
+    project_root: Path,
+    tmp_path: Path,
+    current_pass_change: Path,
+    monkeypatch,
+    capsys,
 ) -> None:
     _, _, _, _, attestation_paths, _, approval_path = _strict_release(
-        project_root, tmp_path, finished=dt.datetime.now(dt.UTC)
+        project_root,
+        tmp_path,
+        finished=dt.datetime.now(dt.UTC),
+        change_path=current_pass_change,
     )
     monkeypatch.setenv("TEST_SCAN_KEY", "scan-attestation-test-key")
     monkeypatch.setenv("TEST_EVIDENCE_KEY", "evidence-test-key")
@@ -402,7 +410,7 @@ def test_cli_loads_and_captures_strict_attestations(
             "--attestation-key-env",
             "TEST_SCAN_KEY",
             "--change",
-            str(scenario / "change.toml"),
+            str(current_pass_change),
             "--approval-attestation",
             str(approval_path),
             "--approval-cosign-bundle",

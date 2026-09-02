@@ -156,7 +156,7 @@ def test_cli_exports_and_compares_decisions(tmp_path: Path, capsys) -> None:
 
 
 def test_shadow_policy_is_recorded_without_changing_primary_decision(
-    project_root: Path, tmp_path: Path, capsys
+    project_root: Path, tmp_path: Path, current_pass_change: Path, capsys
 ) -> None:
     baseline = project_root / "policies/financial-baseline.toml"
     candidate = tmp_path / "candidate.toml"
@@ -178,7 +178,7 @@ def test_shadow_policy_is_recorded_without_changing_primary_decision(
             "--reports",
             str(scenario / "reports"),
             "--change",
-            str(scenario / "change.toml"),
+            str(current_pass_change),
             "--subject",
             str(scenario / "release-subject.json"),
             "--output",

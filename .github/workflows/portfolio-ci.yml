@@ -57,6 +57,56 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  portfolio-document:
+    name: Portfolio PDF reproducibility
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            requirements-dev.lock
+            requirements-portfolio.lock
+
+      - name: Install project and portfolio dependencies
+        run: |
+          python -m pip install --requirement requirements-dev.lock
+          python -m pip install --requirement requirements-portfolio.lock
+          python -m pip install --no-deps --editable .
+
+      - name: Create fresh validation reports
+        run: |
+          mkdir -p build/portfolio
+          pytest --quiet \
+            --junitxml=build/portfolio/junit.xml \
+            --cov=finguard \
+            --cov-report=xml:build/portfolio/coverage.xml \
+            --cov-fail-under=85
+
+      - name: Rebuild and compare the portfolio PDF
+        run: |
+          python scripts/build_portfolio_pdf.py \
+            --junit-xml build/portfolio/junit.xml \
+            --coverage-xml build/portfolio/coverage.xml \
+            --output build/portfolio/FinGuard_DevSecOps_Portfolio.pdf
+          cmp \
+            output/pdf/FinGuard_DevSecOps_Portfolio.pdf \
+            build/portfolio/FinGuard_DevSecOps_Portfolio.pdf
+
+      - name: Preserve the verified portfolio PDF
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: finguard-portfolio-pdf
+          path: build/portfolio/FinGuard_DevSecOps_Portfolio.pdf
+          if-no-files-found: error
+          retention-days: 14
+
   security-gate:
     name: Real SAST, SCA and DAST
     runs-on: ubuntu-24.04

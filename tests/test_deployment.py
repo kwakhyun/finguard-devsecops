@@ -78,7 +78,7 @@ def _request(evidence: Path, tmp_path: Path) -> DeploymentRequest:
         container="api",
         image="registry.example/credit/api@sha256:" + "a" * 64,
         expected_policy_id="FIN-SW-DEVSECOPS-BASELINE",
-        expected_policy_version="5.1.0",
+        expected_policy_version="5.1.1",
         expected_policy_sha256=hashlib.sha256(
             (evidence / "inputs/policy.toml").read_bytes()
         ).hexdigest(),
@@ -90,7 +90,12 @@ def _request(evidence: Path, tmp_path: Path) -> DeploymentRequest:
 def test_dry_run_verifies_evidence_and_plans_commands(project_root: Path, tmp_path: Path) -> None:
     evidence, key = _evidence(project_root, tmp_path)
     request = _request(evidence, tmp_path)
-    result = deploy(request, signing_key=key, dry_run=True)
+    result = deploy(
+        request,
+        signing_key=key,
+        dry_run=True,
+        now=dt.datetime(2026, 9, 1, 13, 30, tzinfo=dt.UTC),
+    )
     assert result["status"] == "planned"
     assert result["change_id"] == "CB-2026-0107"
     assert result["commands"][0][5:8] == ["set", "image", "deployment/customer-credit-api"]

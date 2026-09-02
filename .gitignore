@@ -13,4 +13,9 @@ htmlcov/
 /dist/
 /reports/
 /evidence/
-/output/pdf/*.pdf
+/output/pdf/
+/scripts/build_portfolio_pdf.py
+/requirements-portfolio.lock
+/assets/fonts/
+/PORTFOLIO.md
+/.local/

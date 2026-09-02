@@ -14,7 +14,6 @@ dependencies = []
 
 [project.urls]
 Repository = "https://github.com/kwakhyun/finguard-devsecops"
-Portfolio = "https://github.com/kwakhyun/finguard-devsecops/blob/main/PORTFOLIO.md"
 Issues = "https://github.com/kwakhyun/finguard-devsecops/issues"
 
 [project.optional-dependencies]

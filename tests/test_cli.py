@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime as dt
 import hashlib
 import json
 from pathlib import Path
@@ -30,7 +31,7 @@ def test_cli_scan_writes_normalized_report(tmp_path: Path, capsys) -> None:
 
 
 def test_cli_gate_sign_verify_and_deploy_dry_run(
-    project_root: Path, tmp_path: Path, monkeypatch, capsys
+    project_root: Path, tmp_path: Path, current_pass_change: Path, monkeypatch, capsys
 ) -> None:
     scenario = project_root / "examples/scenarios/pass"
     evidence = tmp_path / "evidence"
@@ -43,7 +44,7 @@ def test_cli_gate_sign_verify_and_deploy_dry_run(
             "--reports",
             str(scenario / "reports"),
             "--change",
-            str(scenario / "change.toml"),
+            str(current_pass_change),
             "--subject",
             str(scenario / "release-subject.json"),
             "--output",
@@ -84,7 +85,7 @@ def test_cli_gate_sign_verify_and_deploy_dry_run(
             "--expected-policy-id",
             "FIN-SW-DEVSECOPS-BASELINE",
             "--expected-policy-version",
-            "5.1.0",
+            "5.1.1",
             "--expected-policy-sha256",
             hashlib.sha256((evidence / "inputs/policy.toml").read_bytes()).hexdigest(),
             "--evidence",
@@ -121,8 +122,36 @@ def test_cli_demo_fail_returns_policy_exit_code(project_root: Path, tmp_path: Pa
     assert {item["code"] for item in payload["violations"]}
 
 
+def test_cli_demo_pass_refreshes_the_deployment_window(
+    project_root: Path, tmp_path: Path, monkeypatch, capsys
+) -> None:
+    execution_time = dt.datetime(2035, 4, 5, 12, 0, tzinfo=dt.UTC)
+    monkeypatch.setattr("finguard.cli._utc_now", lambda: execution_time)
+    output = tmp_path / "demo"
+
+    code = main(
+        [
+            "demo",
+            "--scenario",
+            "pass",
+            "--fixtures",
+            str(project_root / "examples/scenarios"),
+            "--policy",
+            str(project_root / "policies/financial-baseline.toml"),
+            "--output",
+            str(output),
+        ]
+    )
+
+    assert code == EXIT_OK
+    assert json.loads(capsys.readouterr().out)["decision"] == "pass"
+    captured = (output / "pass/inputs/change.toml").read_text(encoding="utf-8")
+    assert "window_start = 2035-04-05T11:55:00+00:00" in captured
+    assert "window_end = 2035-04-05T12:55:00+00:00" in captured
+
+
 def test_cli_verify_requires_signature_unless_explicitly_opted_out(
-    project_root: Path, tmp_path: Path, capsys
+    project_root: Path, tmp_path: Path, current_pass_change: Path, capsys
 ) -> None:
     scenario = project_root / "examples/scenarios/pass"
     evidence = tmp_path / "unsigned-evidence"
@@ -135,7 +164,7 @@ def test_cli_verify_requires_signature_unless_explicitly_opted_out(
                 "--reports",
                 str(scenario / "reports"),
                 "--change",
-                str(scenario / "change.toml"),
+                str(current_pass_change),
                 "--subject",
                 str(scenario / "release-subject.json"),
                 "--output",

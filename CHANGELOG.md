@@ -2,6 +2,22 @@
 
 이 문서는 FinGuard 공개 포트폴리오의 주요 변경을 기록합니다.
 
+## [0.6.4] - 2026-09-02
+
+### 개선
+
+- 정상 데모의 배포 허용 시간을 실행 시각에 맞춰 생성해 고정된 예제 데이터의 만료로 인한 실패 방지
+- README와 포트폴리오 전반의 용어를 자연스러운 한국어로 정리하고 재현 절차 보완
+- 제출용 7쪽 PDF와 한글 글꼴, 재생성 스크립트, 전용 의존성 잠금 파일 추가
+- 포함된 NanumGothic의 `OFL-1.1` 라이선스를 검토해 정책 허용 목록과 글꼴 라이선스 파일에 명시
+- 테스트 건수와 커버리지 결과를 확인한 뒤 결정론적 PDF를 재생성하고 커밋본과 비교하는 CI 검사 추가
+
+### 검증
+
+- 195개 회귀 테스트, Ruff, Mypy, 85.35% 커버리지 기준 통과
+- 정상 릴리스 PASS 증적 검증과 위험 변경 차단 E2E 시나리오 통과
+- 제출용 PDF 7쪽의 텍스트, 링크, 글꼴, 정렬, 간격과 재현성 검증
+
 ## [0.6.3] - 2026-09-01
 
 ### 개선
@@ -55,6 +71,7 @@
 - 190개 회귀 테스트와 85% 이상 커버리지
 - 정상 릴리스 PASS 증적 검증과 위험 릴리스 차단
 
+[0.6.4]: https://github.com/kwakhyun/finguard-devsecops/tree/v0.6.4
 [0.6.3]: https://github.com/kwakhyun/finguard-devsecops/tree/v0.6.3
 [0.6.2]: https://github.com/kwakhyun/finguard-devsecops/tree/v0.6.2
 [0.6.1]: https://github.com/kwakhyun/finguard-devsecops/tree/v0.6.1

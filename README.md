@@ -137,11 +137,12 @@ make demo-pass
 
 ## 온프레미스 예시
 
-SonarQube와 PostgreSQL 예시에서도 버전이 바뀔 수 있는 이미지 태그를 사용하지 않습니다. 이미지를 내부 레지스트리로 반입하고 서명을 검증한 뒤, 다이제스트 참조로 고정해 실행합니다.
+SonarQube와 PostgreSQL 예시에서도 버전이 바뀔 수 있는 이미지 태그를 사용하지 않습니다. `make onprem-up`은 두 이미지가 다이제스트로 고정됐는지 확인하고, 지정된 Cosign 공개키로 서명을 검증한 뒤 Compose를 실행합니다. 다이제스트 또는 서명 검증에 실패하면 인프라를 시작하지 않습니다.
 
 ```bash
 export POSTGRES_IMAGE='registry.internal/postgres@sha256:<64-hex>'
 export SONARQUBE_IMAGE='registry.internal/sonarqube@sha256:<64-hex>'
+export FINGUARD_TOOL_IMAGE_COSIGN_PUBLIC_KEY='/run/secrets/tool-image-cosign.pub'
 export SONAR_DB_PASSWORD='<secret-store-injected-value>'
 make onprem-up
 ```

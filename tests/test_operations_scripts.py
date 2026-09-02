@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 from pathlib import Path
 from types import ModuleType
 
 import pytest
 
-from finguard.errors import ConfigurationError
+from finguard.errors import ConfigurationError, FinGuardError
 
 
 def _load_script(project_root: Path, name: str) -> ModuleType:
@@ -18,18 +19,47 @@ def _load_script(project_root: Path, name: str) -> ModuleType:
     return module
 
 
-def test_onprem_validator_requires_digest_pinned_images(
+def test_onprem_validator_requires_pinned_and_signed_images(
     project_root: Path, monkeypatch, capsys
 ) -> None:
     validator = _load_script(project_root, "validate_onprem_images.py")
-    monkeypatch.setenv("POSTGRES_IMAGE", "registry.example/postgres@sha256:" + "a" * 64)
-    monkeypatch.setenv("SONARQUBE_IMAGE", "registry.example/sonarqube@sha256:" + "b" * 64)
+    postgres = "registry.example/postgres@sha256:" + "a" * 64
+    sonarqube = "registry.example/sonarqube@sha256:" + "b" * 64
+    key = "/run/secrets/tool-image-cosign.pub"
+    commands: list[list[str]] = []
+
+    def successful_run(command: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+        commands.append(command)
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setenv("POSTGRES_IMAGE", postgres)
+    monkeypatch.setenv("SONARQUBE_IMAGE", sonarqube)
+    monkeypatch.setenv("FINGUARD_TOOL_IMAGE_COSIGN_PUBLIC_KEY", key)
+    monkeypatch.setattr(validator.subprocess, "run", successful_run)
 
     validator.main()
-    assert "immutable" in capsys.readouterr().out
+    assert "signatures are verified" in capsys.readouterr().out
+    assert commands == [
+        ["cosign", "verify", "--key", key, postgres],
+        ["cosign", "verify", "--key", key, sonarqube],
+    ]
 
     monkeypatch.setenv("SONARQUBE_IMAGE", "sonarqube:community")
     with pytest.raises(ConfigurationError, match="immutable"):
+        validator.main()
+
+    monkeypatch.setenv("SONARQUBE_IMAGE", sonarqube)
+    monkeypatch.delenv("FINGUARD_TOOL_IMAGE_COSIGN_PUBLIC_KEY")
+    with pytest.raises(FinGuardError, match="must be set"):
+        validator.main()
+
+    monkeypatch.setenv("FINGUARD_TOOL_IMAGE_COSIGN_PUBLIC_KEY", key)
+
+    def failed_run(command: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+        raise subprocess.CalledProcessError(1, command, stderr="signature is not trusted")
+
+    monkeypatch.setattr(validator.subprocess, "run", failed_run)
+    with pytest.raises(FinGuardError, match="POSTGRES_IMAGE signature verification failed"):
         validator.main()
 
 

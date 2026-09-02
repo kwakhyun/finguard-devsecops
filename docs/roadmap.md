@@ -13,7 +13,7 @@
 | 평가 입력 고정 | 게이트, 검증, 배포 명령이 비공개 스냅샷의 동일한 바이트만 검증하고 사용 | `finguard/cli.py` |
 | 단일 빌드 | 레지스트리 다이제스트를 SCA, DAST, 승인, 배포에 재사용 | GitLab CI, Jenkinsfile |
 | CI 신뢰 분리 | MR 잡에 운영 키, 변경 승인, Kubernetes 자격 증명을 제공하지 않음 | 파이프라인 계약 테스트 |
-| 부동 도구 이미지 | CI, Dockerfile, 온프레미스 인프라가 다이제스트 참조만 사용 | `validate-images`, 운영 스크립트 |
+| 부동 도구 이미지 | CI와 Dockerfile은 다이제스트 참조만 허용하고, 온프레미스 인프라는 다이제스트와 Cosign 서명을 실행 전에 검증 | `validate-images`, 운영 스크립트와 테스트 |
 | 안전한 정리 | `make clean` 범위를 저장소의 `build/`로 고정 | `scripts/clean_build.py` |
 | 재사용 러너 오염 차단 | Jenkins가 체크아웃 전에 전용 작업 공간을 비워 이전 보고서, 증명서, Git이 추적하지 않는 소스를 제거 | `Jenkinsfile`, 파이프라인 계약 테스트 |
 

@@ -13,3 +13,4 @@ htmlcov/
 /dist/
 /reports/
 /evidence/
+/output/pdf/*.pdf

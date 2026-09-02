@@ -58,7 +58,7 @@ jobs:
           retention-days: 14
 
   portfolio-document:
-    name: Portfolio PDF reproducibility
+    name: Portfolio generator reproducibility
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -89,23 +89,19 @@ jobs:
             --cov-report=xml:build/portfolio/coverage.xml \
             --cov-fail-under=85
 
-      - name: Rebuild and compare the portfolio PDF
+      - name: Verify deterministic portfolio generation
         run: |
           python scripts/build_portfolio_pdf.py \
             --junit-xml build/portfolio/junit.xml \
             --coverage-xml build/portfolio/coverage.xml \
-            --output build/portfolio/FinGuard_DevSecOps_Portfolio.pdf
+            --output build/portfolio/portfolio-first.pdf
+          python scripts/build_portfolio_pdf.py \
+            --junit-xml build/portfolio/junit.xml \
+            --coverage-xml build/portfolio/coverage.xml \
+            --output build/portfolio/portfolio-second.pdf
           cmp \
-            output/pdf/FinGuard_DevSecOps_Portfolio.pdf \
-            build/portfolio/FinGuard_DevSecOps_Portfolio.pdf
-
-      - name: Preserve the verified portfolio PDF
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: finguard-portfolio-pdf
-          path: build/portfolio/FinGuard_DevSecOps_Portfolio.pdf
-          if-no-files-found: error
-          retention-days: 14
+            build/portfolio/portfolio-first.pdf \
+            build/portfolio/portfolio-second.pdf
 
   security-gate:
     name: Real SAST, SCA and DAST

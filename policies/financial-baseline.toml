@@ -1,6 +1,6 @@
 [metadata]
 id = "FIN-SW-DEVSECOPS-BASELINE"
-version = "5.1.0"
+version = "5.1.1"
 name = "금융 서비스 SW 품질 및 보안 기준"
 owner = "SW Quality Engineering"
 
@@ -29,6 +29,7 @@ allowed = [
   "BSD-3-Clause",
   "ISC",
   "MIT",
+  "OFL-1.1",
   "Python-2.0",
 ]
 denied = ["AGPL-3.0-only", "AGPL-3.0-or-later", "GPL-3.0-only", "SSPL-1.0"]

@@ -1,7 +1,7 @@
 [metadata]
 id = "FIN-SW-DEVSECOPS-MR"
 version = "5.1.1"
-name = "Merge Request 빠른 품질 기준"
+name = "MR 변경 검증 정책"
 owner = "SW Quality Engineering"
 
 [gates]

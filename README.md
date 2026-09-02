@@ -14,6 +14,7 @@ FinGuard는 서로 다른 품질 및 보안 보고서를 하나의 모델로 정
 - 개발자: [@kwakhyun](https://github.com/kwakhyun)
 - 개발 형태: 개인 프로젝트
 - 기여도: 100% — 기획, 아키텍처, Python 구현, 정책, CI/CD, 테스트, 문서화
+- 제출용 문서: [FinGuard DevSecOps 포트폴리오 PDF](output/pdf/FinGuard_DevSecOps_Portfolio.pdf)
 - 빠른 검토: [포트폴리오 요약](PORTFOLIO.md)
 - 공개 검증: [GitHub Actions 실행 이력](https://github.com/kwakhyun/finguard-devsecops/actions/workflows/portfolio-ci.yml)
 

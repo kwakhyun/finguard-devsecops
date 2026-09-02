@@ -65,7 +65,7 @@ flowchart LR
     E --> I[ReleaseSubject]
     I --> J[ITSM 보안 검토 및 릴리스 승인]
     J --> K[Cosign 승인 증적]
-    H & I & K --> L[보호 릴리스 게이트]
+    H & I & K --> L[운영 릴리스 게이트]
     L -->|FAIL| M[배포 차단]
     L -->|PASS| N[Cosign 서명 증적]
     N --> O[운영 롤아웃]
@@ -73,7 +73,7 @@ flowchart LR
     P -->|실패| Q[자동 롤백]
 ```
 
-GitLab과 Jenkins 파이프라인은 변경 검증과 보호 릴리스의 신뢰 경계를 분리합니다.
+GitLab과 Jenkins 파이프라인은 변경 검증과 운영 릴리스의 신뢰 경계를 분리합니다.
 변경 검증 작업에는 변경 승인, 서명, Kubernetes 자격 증명을 주입하지 않습니다.
 릴리스 경로에서는 루트 권한이 필요 없는 BuildKit 또는 Podman으로 이미지를 한 번만 빌드합니다. 이후 레지스트리가 반환한 동일한 다이제스트를 SCA, DAST, 승인, 배포에 재사용합니다.
 
@@ -82,7 +82,7 @@ GitLab과 Jenkins 파이프라인은 변경 검증과 보호 릴리스의 신뢰
 `financial-baseline.toml`은 로컬 데모에서 전체 통제를 재현하는 정책이고, `financial-release.toml`은 보호된 러너에서 사용하는 엄격한 정책입니다. 릴리스 정책은 다음 항목을 추가로 요구합니다.
 
 - 모든 보고서에 서명된 스캔 실행 증명서가 있고 러너와 서명 키 ID가 허용 목록에 포함될 것
-- 40자 또는 64자로 된 전체 소스 커밋이 정확히 일치하고 SCA/DAST 이미지 다이제스트도 일치할 것
+- 40자 또는 64자의 축약하지 않은 소스 커밋 해시가 정확히 일치하고 SCA/DAST 이미지 다이제스트도 일치할 것
 - CycloneDX 보고서의 SHA-256과 승인된 SBOM의 SHA-256이 일치할 것
 - 스캐너 명령어 및 규칙 세트의 해시, 종료 코드, 취약점 DB 해시와 갱신 시각이 유효할 것
 - 최소 테스트 수를 충족하고 JUnit 선언 건수와 실제 테스트 케이스 수, 커버리지 비율과 원시 집계값이 일관될 것
@@ -102,7 +102,7 @@ GitLab과 Jenkins 파이프라인은 변경 검증과 보호 릴리스의 신뢰
 - 배포 러너는 증적 공개키만 보유하며 `--require-signature`를 우회할 수 없습니다.
 - 실제 배포에서는 별도 KMS 또는 Vault URI로 결과 JSON까지 서명해야 합니다. 서명 키가 없으면 Kubernetes를 변경하지 않습니다. Cosign 번들은 임시 파일에서 완성한 뒤 원자적으로 게시하므로, 서명에 실패한 불완전한 파일을 감사 결과로 남기지 않습니다.
 
-GitLab에서는 ITSM 승인 파일, Cosign 공개키, 증적 서명 키를 보호 변수로 관리합니다. 스캔 서명 키와 Kubernetes 자격 증명도 보호 릴리스 러너에만 제공합니다.
+GitLab에서는 ITSM 승인 파일, Cosign 공개키, 증적 서명 키를 보호 변수로 관리합니다. 스캔 서명 키와 Kubernetes 자격 증명도 운영 릴리스 러너에만 제공합니다.
 
 내부 레지스트리의 BuildKit, Semgrep, Trivy, DAST 러너, ZAP 이미지는 다이제스트로 고정하고 실제 도구 버전을 CI 변수에 명시합니다. 보호 변수와 CI 연결 방식은 [GitLab 파이프라인](.gitlab-ci.yml), 장애 대응 절차는 [운영 런북](docs/operations-runbook.md)에서 확인할 수 있습니다.
 
@@ -151,7 +151,7 @@ make onprem-up
 
 ```text
 finguard/                 CLI, 정규화, 정책, 스캔 실행 증명서, 증적, 배포
-policies/                 변경 검증, 로컬 기준, 보호 릴리스 정책과 예외 예시
+policies/                 변경 검증, 로컬 기준, 운영 릴리스 정책과 예외 예시
 .semgrep/                 Python Secure Coding 규칙
 examples/scenarios/       재현 가능한 PASS와 FAIL 입력
 sample_service/           DAST와 스모크 테스트용 최소 HTTP 서비스

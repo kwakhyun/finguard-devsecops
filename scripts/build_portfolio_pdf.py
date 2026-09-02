@@ -549,7 +549,7 @@ def page_cover(canvas: Canvas, facts: dict[str, str]) -> None:
     )
     para(
         canvas,
-        "합성 스캔 보고서와 샘플 서비스로 재현한 독립 포트폴리오입니다. 실제 운영 적용이나 규제 준수 인증을 주장하지 않습니다.",
+        "예제 스캔 보고서와 샘플 서비스로 구성한 독립 포트폴리오입니다. 실제 운영 적용이나 규제 준수 인증을 주장하지 않습니다.",
         MARGIN + 53 * mm,
         PAGE_H - 243 * mm,
         PAGE_W - 2 * MARGIN - 58 * mm,
@@ -658,7 +658,7 @@ def page_problem(canvas: Canvas) -> None:
     )
     principles = [
         "<b>정규화:</b> 보고서 형식을 공통 모델로 변환",
-        "<b>대상 대조:</b> 검사, 승인, 배포를 같은 대상 해시로 확인",
+        "<b>대상 대조:</b> 검사, 승인, 배포의 대상이 같은지 해시로 확인",
         "<b>오류 시 차단:</b> 누락, 파싱 오류, 서명 실패를 취약점 0건과 구분",
     ]
     bullet_list(
@@ -681,9 +681,9 @@ def page_flow(canvas: Canvas) -> None:
     zone_height = 39 * mm
     zone_gap = 5 * mm
     zones = [
-        ("구간 1  변경 검증", "운영 비밀 없음", BLUE_SOFT, BLUE),
-        ("구간 2  보호 릴리스", "서명과 승인 접근", TEAL_SOFT, TEAL_DARK),
-        ("구간 3  배포 및 복구", "공개키로 판정 자료 검증", AMBER_SOFT, HexColor("#9A6514")),
+        ("구간 1  변경 검증", "운영 비밀정보 미사용", BLUE_SOFT, BLUE),
+        ("구간 2  보호 릴리스", "서명 키와 승인 정보에 접근", TEAL_SOFT, TEAL_DARK),
+        ("구간 3  배포 및 복구", "공개키로 판정 증적 검증", AMBER_SOFT, HexColor("#9A6514")),
     ]
     zone_width = (PAGE_W - 2 * MARGIN - 2 * zone_gap) / 3
     for index, (title, subtitle, fill, accent) in enumerate(zones):
@@ -713,11 +713,11 @@ def page_flow(canvas: Canvas) -> None:
     # Zone 2
     x2 = MARGIN + zone_width + zone_gap + 4.5 * mm
     flow_box(canvas, "보호된<br/>main", x2, y1, box_w, box_h, fill=WHITE)
-    flow_box(canvas, "단일 빌드<br/>다이제스트", x2 + 23 * mm, y1, box_w, box_h, fill=WHITE)
+    flow_box(canvas, "불변 이미지<br/>다이제스트", x2 + 23 * mm, y1, box_w, box_h, fill=WHITE)
     arrow(canvas, x2 + box_w, y1 + box_h / 2, x2 + 22 * mm, y1 + box_h / 2, color=TEAL_DARK)
     # Zone 3
     x3 = MARGIN + 2 * (zone_width + zone_gap) + 4.5 * mm
-    flow_box(canvas, "서명된<br/>PASS 자료", x3, y1, box_w, box_h, fill=WHITE)
+    flow_box(canvas, "서명된<br/>PASS 증적", x3, y1, box_w, box_h, fill=WHITE)
     flow_box(canvas, "Kubernetes<br/>롤아웃", x3 + 23 * mm, y1, box_w, box_h, fill=WHITE)
     arrow(canvas, x3 + box_w, y1 + box_h / 2, x3 + 22 * mm, y1 + box_h / 2, color=AMBER)
 
@@ -726,7 +726,7 @@ def page_flow(canvas: Canvas) -> None:
     steps = [
         ("1", "이미지<br/>한 번만 빌드", BLUE_SOFT, BLUE),
         ("2", "동일 이미지로<br/>SCA, SBOM, DAST", BLUE_SOFT, BLUE),
-        ("3", "스캔 실행 기록<br/>서명", TEAL_SOFT, TEAL_DARK),
+        ("3", "스캔 실행 기록에<br/>서명", TEAL_SOFT, TEAL_DARK),
         ("4", "ITSM 보안 검토<br/>및 릴리스 승인", TEAL_SOFT, TEAL_DARK),
         ("5", "정책 게이트<br/>PASS / FAIL", AMBER_SOFT, HexColor("#9A6514")),
         ("6", "배포, 상태 확인<br/>실패 시 롤백", AMBER_SOFT, HexColor("#9A6514")),
@@ -802,7 +802,7 @@ def page_flow(canvas: Canvas) -> None:
     )
     para(
         canvas,
-        "ITSM, KMS, 보호 러너는 코드와 파이프라인 계약으로 검증한 설계 범위이며, 실제 운영 실적은 아닙니다.",
+        "ITSM, KMS, 보호 러너 연계는 코드와 파이프라인 계약으로 검증한 설계이며, 실제 운영 실적은 아닙니다.",
         MARGIN + 35 * mm,
         evidence_top - 15 * mm,
         PAGE_W - 2 * MARGIN - 40 * mm,
@@ -826,7 +826,7 @@ def page_policy(canvas: Canvas) -> None:
         ],
         [
             "코드 품질",
-            "JUnit 건수와 실패 수, 커버리지 원시 집계<br/>교차 검증",
+            "JUnit의 테스트 및 실패 건수와<br/>커버리지 원시 집계를 교차 검증",
             "실패 발생, 85% 미만,<br/>선언값과 실제 건수 불일치",
         ],
         [
@@ -841,13 +841,13 @@ def page_policy(canvas: Canvas) -> None:
         ],
         [
             "DAST",
-            "OWASP ZAP 결과와 검사 대상 URL을 이미지와 연결",
+            "OWASP ZAP 결과와 검사 대상 URL을<br/>이미지 다이제스트에 연결",
             "HIGH 탐지, 승인되지 않은 대상, 보고서 누락",
         ],
         [
             "변경 통제",
             "CB/SR, 승인 역할, 직무 분리,<br/>롤백 계획과 배포 허용 시간",
-            "승인 부족, 같은 사람의 요청과 배포, 만료된 변경",
+            "필수 승인 부족, 요청자와 배포자가 동일,<br/>만료된 변경",
         ],
         [
             "검증 입력",
@@ -857,7 +857,7 @@ def page_policy(canvas: Canvas) -> None:
         [
             "예외 정책",
             "단일 탐지 지문, 독립 승인, 최대 30일,<br/>보완 통제",
-            "CRITICAL 예외, 범위 불일치, 만료 또는 연장",
+            "CRITICAL 등급 예외, 범위 불일치,<br/>만료 또는 연장된 예외",
         ],
     ]
     converted = []
@@ -905,7 +905,7 @@ def page_policy(canvas: Canvas) -> None:
         ("financial-baseline.toml", "로컬에서 전체 통제 재현", TEAL_SOFT, TEAL_DARK),
         (
             "financial-release.toml",
-            "보호 릴리스용 엄격 정책",
+            "보호 릴리스용 엄격한 정책",
             AMBER_SOFT,
             HexColor("#9A6514"),
         ),
@@ -930,10 +930,10 @@ def page_policy(canvas: Canvas) -> None:
         fill=RED_SOFT,
         stroke=HexColor("#F4CACA"),
     )
-    para(canvas, "의도한 FAIL 시나리오", MARGIN + 5 * mm, fail_top - 5 * mm, 43 * mm, "card_title")
+    para(canvas, "차단 동작 검증", MARGIN + 5 * mm, fail_top - 5 * mm, 43 * mm, "card_title")
     para(
         canvas,
-        "CRITICAL SCA, HIGH SAST, AGPL, 테스트 실패, 직무 분리 위반",
+        "SCA의 CRITICAL 취약점, SAST의 HIGH 탐지, AGPL, 테스트 실패, 직무 분리 위반",
         MARGIN + 51 * mm,
         fail_top - 7 * mm,
         PAGE_W - 2 * MARGIN - 57 * mm,
@@ -966,11 +966,11 @@ def page_evidence(canvas: Canvas) -> None:
     )
 
     tree_lines = [
-        (".finguard-evidence", "FinGuard 생성 경로 표시"),
-        ("manifest.json", "허용 파일과 SHA-256"),
+        (".finguard-evidence", "FinGuard가 생성한 경로"),
+        ("manifest.json", "허용 파일 목록과 SHA-256"),
         ("decision.json", "PASS / FAIL과 위반 사유"),
         ("audit.jsonl", "해시 체인 감사 로그"),
-        ("summary.md", "사람이 읽는 요약"),
+        ("summary.md", "검토용 요약"),
         ("inputs/", "정책, 보고서, 변경, 승인"),
         ("signature.*", "HMAC 또는 Cosign 서명"),
     ]
@@ -994,11 +994,11 @@ def page_evidence(canvas: Canvas) -> None:
         "card_title",
     )
     attestation_items = [
-        "보고서 원문의 SHA-256과 스캐너 제품, 버전",
+        "보고서 원문의 SHA-256과 스캐너 이름, 버전",
         "실행한 명령어와 규칙 세트의 해시, 종료 코드",
         "전체 소스 커밋, SCA와 DAST의 이미지 다이제스트",
         "허용된 러너 ID, 서명 키 ID, CI 실행 정보",
-        "취약점 DB 해시와 갱신 시각, 보고서 신선도",
+        "취약점 DB 해시와 갱신 시각, 보고서 최신성",
         "DAST 대상 URL과 승인된 상태 확인 URL의 일치",
     ]
     bullet_list(
@@ -1040,7 +1040,7 @@ def page_evidence(canvas: Canvas) -> None:
         ("검증 입력", "입력 원문<br/>스냅샷", BLUE_SOFT),
         ("정책 평가", "정책, 보고서<br/>변경, 승인", BLUE_SOFT),
         ("준비 디렉터리", "매니페스트<br/>해시 체인", TEAL_SOFT),
-        ("서명", "로컬 HMAC<br/>보호 Cosign", TEAL_SOFT),
+        ("서명", "로컬은 HMAC<br/>보호 환경은 Cosign", TEAL_SOFT),
         ("완성본 교체", "생성 경로 확인<br/>불완전 결과 차단", AMBER_SOFT),
     ]
     gap = 5 * mm
@@ -1062,13 +1062,13 @@ def page_evidence(canvas: Canvas) -> None:
     trust_gap = 5 * mm
     trust_w = (PAGE_W - 2 * MARGIN - 2 * trust_gap) / 3
     trusts = [
-        ("로컬 재현", "공개 데모 키로 HMAC 서명. 운영 사용 금지.", BLUE_SOFT),
+        ("로컬 재현", "공개된 데모 키로 HMAC 서명.<br/>운영 환경에서는 사용 금지.", BLUE_SOFT),
         (
             "보호 릴리스 설계",
-            "KMS 또는 Vault URI로 Cosign 서명. 게이트만 서명 권한 보유.",
+            "KMS 또는 Vault URI로 Cosign 서명.<br/>게이트에만 서명 권한 부여.",
             TEAL_SOFT,
         ),
-        ("배포 러너", "증적 공개키만 보유.<br/>PASS 증적 생성 권한 없음.", AMBER_SOFT),
+        ("배포 러너", "증적 검증용 공개키만 보유.<br/>PASS 증적 생성 권한 없음.", AMBER_SOFT),
     ]
     for index, (title, body, fill) in enumerate(trusts):
         x = MARGIN + index * (trust_w + trust_gap)
@@ -1098,7 +1098,7 @@ def page_deploy(canvas: Canvas) -> None:
             BLUE,
         ),
         (
-            "02  배포 변경",
+            "02  배포 실행",
             [
                 "kubectl auth can-i로<br/>RBAC 권한 확인",
                 "다이제스트 참조 이미지만 허용",
@@ -1163,7 +1163,7 @@ def page_deploy(canvas: Canvas) -> None:
         x += chip_width + 4 * mm
     para(
         canvas,
-        "Kubernetes를 변경한 뒤 실패하면 배포 직전에 확인한 이전 불변 이미지 다이제스트와 기존 FinGuard 감사 애너테이션을 복원합니다.",
+        "Kubernetes 배포 이후 실패가 발생하면 직전에 확인한 이전 불변 이미지 다이제스트와 기존 FinGuard 감사 애너테이션을 복원합니다.",
         MARGIN + 49 * mm,
         rollback_top - 31 * mm,
         PAGE_W - 2 * MARGIN - 55 * mm,
@@ -1187,7 +1187,7 @@ def page_deploy(canvas: Canvas) -> None:
         [
             "BuildKit 또는 Podman으로 루트 권한 없이 한 번만 빌드",
             "도구와 인프라 이미지를 다이제스트로 고정",
-            "SonarQube와 PostgreSQL 이미지는 내부 레지스트리 반입 후 서명 검증",
+            "SonarQube와 PostgreSQL 이미지를<br/>내부 레지스트리에 반입해 서명 검증",
             "배포 러너에는 공개키만 두고 서명 권한은 분리",
         ],
         MARGIN + 5 * mm,
@@ -1209,7 +1209,7 @@ def page_deploy(canvas: Canvas) -> None:
         [
             "GitLab Code Quality JSON과 SARIF 내보내기",
             "적용 전에 후보 정책과 기준 정책을 비교한 결과",
-            "판정, 탐지, 예외, VEX, OSS, 승인 지표를<br/>Prometheus 형식으로 출력",
+            "판정, 탐지, 예외, VEX, OSS 인벤토리와<br/>승인 증적 검증 지표를 Prometheus 형식으로 출력",
             "로컬 내장 스캐너로 외부 보안 서버 없이 빠른 피드백",
         ],
         right_x + 5 * mm,
@@ -1231,7 +1231,7 @@ def page_validation(canvas: Canvas, facts: dict[str, str]) -> None:
     metric_w = (PAGE_W - 2 * MARGIN - 3 * metric_gap) / 4
     for index, (value, label) in enumerate(
         [
-            (facts["test_count"], "테스트 통과"),
+            (facts["test_count"], "회귀 테스트"),
             (facts["coverage_percent"], "핵심 패키지 커버리지"),
             ("0", "Ruff 위반"),
             ("0", "Mypy 오류"),
@@ -1249,10 +1249,10 @@ def page_validation(canvas: Canvas, facts: dict[str, str]) -> None:
     verified = [
         "GitHub Actions에서 품질 검사와 E2E 데모 실행",
         "Semgrep, Trivy, OWASP ZAP을 공개 CI에서 실제 실행",
-        "Cosign과 kubectl 어댑터, 하위 프로세스 계약 테스트",
-        "변조, 누락, 서명 오류, 유효 시간 초과 회귀 테스트",
-        "롤아웃, 스모크 테스트, 결과 서명 실패 롤백 경로",
-        "main 보호, 필수 CI, 강제 푸시와 브랜치 삭제 차단",
+        "Cosign 및 kubectl 어댑터의 하위 프로세스 계약 검증",
+        "변조, 누락, 서명 오류, 유효 시간 초과 상황의 회귀 테스트",
+        "롤아웃, 스모크 테스트 또는 결과 서명 실패 시 롤백",
+        "main 브랜치 보호, 필수 CI 검사,<br/>강제 푸시 및 브랜치 삭제 차단",
     ]
     bullet_list(
         canvas,
@@ -1275,10 +1275,10 @@ def page_validation(canvas: Canvas, facts: dict[str, str]) -> None:
         "card_title",
     )
     limitations = [
-        "합성 보고서와 샘플 서비스 기반 개인 포트폴리오",
+        "예제 스캔 보고서와 샘플 서비스로 구성한 포트폴리오",
         "실제 온프레미스 서버 및 Kubernetes<br/>운영 실적은 포함하지 않음",
-        "Coverity와 SonarQube는 SARIF 파일만 검증.<br/>상용 서버 API는 미연동",
-        "FOSSA 미실행. Trivy, CycloneDX, SPDX로 OSS 관리",
+        "Coverity와 SonarQube는 SARIF 파일만 검증.<br/>상용 서버 API는 연동하지 않음",
+        "FOSSA는 실행하지 않음. Trivy, CycloneDX, SPDX로 OSS 관리",
         "실제 도입에는 ITSM과 IdP API, 워크로드 아이덴티티, WORM 저장소, SIEM 전송 필요",
     ]
     bullet_list(
@@ -1295,7 +1295,7 @@ def page_validation(canvas: Canvas, facts: dict[str, str]) -> None:
     rounded_card(
         canvas, MARGIN, reproduce_top, PAGE_W - 2 * MARGIN, 42 * mm, fill=NAVY, stroke=NAVY
     )
-    para(canvas, "3분 재현", MARGIN + 6 * mm, reproduce_top - 6 * mm, 30 * mm, "cover_subtitle")
+    para(canvas, "로컬 재현", MARGIN + 6 * mm, reproduce_top - 6 * mm, 30 * mm, "cover_subtitle")
     commands = (
         "python3 -m venv .venv<br/>"
         ".venv/bin/pip install -r requirements-dev.lock<br/>"

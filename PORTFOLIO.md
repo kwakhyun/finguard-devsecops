@@ -38,7 +38,7 @@ FinGuard는 커밋, 이미지 다이제스트, SBOM 해시, 배포 위치, 상�
 
 ## 5분 검토 순서
 
-1. [README](README.md)의 핵심 결과와 3분 재현 명령을 확인합니다.
+1. [README](README.md)의 핵심 결과와 로컬 재현 명령을 확인합니다.
 2. [아키텍처와 위협 모델](docs/architecture.md)에서 신뢰 경계와 릴리스 불변식을 확인합니다.
 3. [통제 구현 매핑](docs/control-mapping.md)에서 코드 및 테스트 증거를 확인합니다.
 4. [GitHub Actions](https://github.com/kwakhyun/finguard-devsecops/actions/workflows/portfolio-ci.yml)에서 실제 Semgrep, Trivy, ZAP 실행 결과를 확인합니다.
@@ -46,6 +46,6 @@ FinGuard는 커밋, 이미지 다이제스트, SBOM 해시, 배포 위치, 상�
 
 ## 검증 범위와 한계
 
-합성 보고서와 샘플 서비스를 이용한 독립 포트폴리오이며 실제 금융사 운영 실적이나 규제 준수 인증을 주장하지 않습니다.
+예제 스캔 보고서와 샘플 서비스를 이용한 독립 포트폴리오이며 실제 금융사 운영 실적이나 규제 준수 인증을 주장하지 않습니다.
 공개 CI는 실제 Semgrep, Trivy, ZAP을 실행하지만, 상용 Coverity/FOSSA API, 실제 ITSM과 IdP, KMS, 온프레미스 Kubernetes 운영은 검증 범위에 포함하지 않았습니다.
 운영 확장 항목은 [로드맵](docs/roadmap.md)에 별도로 관리합니다.

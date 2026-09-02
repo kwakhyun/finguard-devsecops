@@ -8,7 +8,7 @@ risk = "medium"
 commit_sha = "0000000000000000000000000000000000000000"
 requester = "requester@company.example"
 deployer = "deployer@company.example"
-rollback_plan = "이전 이미지 digest로 rollout을 되돌리고 정상 지표를 확인하는 구체적인 절차"
+rollback_plan = "이전 이미지 다이제스트로 롤아웃을 되돌린 뒤 정상 지표를 확인하는 구체적인 절차"
 window_start = 2026-09-01T22:00:00+09:00
 window_end = 2026-09-01T23:00:00+09:00
 

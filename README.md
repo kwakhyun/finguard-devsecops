@@ -14,7 +14,6 @@ FinGuard는 서로 다른 품질 및 보안 보고서를 하나의 모델로 정
 - 개발자: [@kwakhyun](https://github.com/kwakhyun)
 - 개발 형태: 개인 프로젝트
 - 기여도: 100% — 기획, 아키텍처, Python 구현, 정책, CI/CD, 테스트, 문서화
-- 제출용 문서: [FinGuard DevSecOps 포트폴리오 PDF](output/pdf/FinGuard_DevSecOps_Portfolio.pdf)
 - 빠른 검토: [포트폴리오 요약](PORTFOLIO.md)
 - 공개 검증: [GitHub Actions 실행 이력](https://github.com/kwakhyun/finguard-devsecops/actions/workflows/portfolio-ci.yml)
 
@@ -161,7 +160,7 @@ infra/                    온프레미스 SonarQube 구성 예시
 docs/                     설계, 통제 매핑, 변경 관리 흐름, 런북, 로드맵
 assets/fonts/             포트폴리오 PDF용 한글 글꼴과 OFL 라이선스
 scripts/                  데모, CI 보조 도구, 포트폴리오 PDF 생성기
-output/pdf/               제출용 포트폴리오 PDF
+output/pdf/               Git 추적에서 제외한 로컬 PDF 생성 경로
 .gitlab-ci.yml            GitLab MR과 릴리스 파이프라인
 Jenkinsfile               같은 통제를 구현한 Jenkins 파이프라인
 ```
@@ -175,7 +174,7 @@ python -m pip install -r requirements-portfolio.lock
 python scripts/build_portfolio_pdf.py
 ```
 
-생성기는 README와 기준 정책의 핵심 수치를 확인하고, 값이 달라졌다면 검토 없이 이전 수치를 사용하지 않습니다. 공개 CI에서는 JUnit과 Coverage XML의 실제 테스트 결과까지 확인한 뒤 PDF를 다시 만들고 커밋된 제출본과 바이트 단위로 비교합니다.
+생성기는 README와 기준 정책의 핵심 수치를 확인하고, 값이 달라졌다면 검토 없이 이전 수치를 사용하지 않습니다. 공개 CI에서는 JUnit과 Coverage XML의 실제 테스트 결과를 확인하고 PDF를 두 번 생성해 바이트 단위로 비교합니다. 생성된 PDF는 Git 또는 Actions 아티팩트에 업로드하지 않습니다.
 
 ## 자세한 문서
 

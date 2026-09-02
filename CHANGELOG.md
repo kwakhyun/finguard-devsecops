@@ -2,6 +2,14 @@
 
 이 문서는 FinGuard 공개 포트폴리오의 주요 변경을 기록합니다.
 
+## [Unreleased]
+
+### 개선
+
+- 웹 화면, CI 출력, 정책 예시와 문서에서 증명서와 증적의 용도를 구분하고 한국어 표현을 정리
+- 제출 문서의 `3분 재현`을 환경에 따라 달라지지 않는 `로컬 재현`으로 변경
+- 제출용 PDF의 직무분리 문장과 예제 스캔 보고서 용어를 다른 문서와 통일
+
 ## [0.6.4] - 2026-09-02
 
 ### 개선
@@ -72,6 +80,7 @@
 - 190개 회귀 테스트와 85% 이상 커버리지
 - 정상 릴리스 PASS 증적 검증과 위험 릴리스 차단
 
+[Unreleased]: https://github.com/kwakhyun/finguard-devsecops/compare/v0.6.4...HEAD
 [0.6.4]: https://github.com/kwakhyun/finguard-devsecops/tree/v0.6.4
 [0.6.3]: https://github.com/kwakhyun/finguard-devsecops/tree/v0.6.3
 [0.6.2]: https://github.com/kwakhyun/finguard-devsecops/tree/v0.6.2

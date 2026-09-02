@@ -11,15 +11,15 @@ pipeline {
         string(name: 'CHANGE_MANIFEST', defaultValue: '/srv/finguard/approved/change.toml', description: 'ITSM이 게시한 승인 CB/SR 파일')
         string(name: 'APPROVAL_ATTESTATION', defaultValue: '/srv/finguard/approved/approval-attestation.json', description: 'ITSM이 발급한 릴리스 승인 증적')
         string(name: 'APPROVAL_ATTESTATION_BUNDLE', defaultValue: '/srv/finguard/approved/approval-attestation.sigstore.json', description: 'ITSM Cosign 서명 번들')
-        string(name: 'VEX_ATTESTATION', defaultValue: '', description: '선택적인 보안팀 VEX 승인 증적')
-        string(name: 'VEX_ATTESTATION_BUNDLE', defaultValue: '', description: '선택적인 VEX Cosign 번들')
-        string(name: 'REGISTRY_IMAGE', defaultValue: '', description: '내부 registry/repository')
+        string(name: 'VEX_ATTESTATION', defaultValue: '', description: '선택 사항인 보안팀 VEX 승인 증적')
+        string(name: 'VEX_ATTESTATION_BUNDLE', defaultValue: '', description: '선택 사항인 VEX Cosign 번들')
+        string(name: 'REGISTRY_IMAGE', defaultValue: '', description: '내부 레지스트리 이미지 저장소 경로')
         string(name: 'RELEASE_SERVICE', defaultValue: 'customer-credit-api', description: '릴리스 서비스 DNS 이름')
         string(name: 'ZAP_IMAGE', defaultValue: '', description: '내부 ZAP 이미지 @sha256 참조')
-        string(name: 'SEMGREP_VERSION', defaultValue: '', description: '관리되는 Semgrep toolcache 버전')
-        string(name: 'TRIVY_VERSION', defaultValue: '', description: '관리되는 Trivy toolcache 버전')
+        string(name: 'SEMGREP_VERSION', defaultValue: '', description: '관리 대상 Semgrep 도구 버전')
+        string(name: 'TRIVY_VERSION', defaultValue: '', description: '관리 대상 Trivy 도구 버전')
         string(name: 'ZAP_VERSION', defaultValue: '', description: 'ZAP_IMAGE에 포함된 ZAP 버전')
-        booleanParam(name: 'DEPLOY_PRODUCTION', defaultValue: false, description: '승인 증적으로 운영 배포')
+        booleanParam(name: 'DEPLOY_PRODUCTION', defaultValue: false, description: '승인 증적을 사용해 운영에 배포')
     }
 
     environment {
@@ -32,7 +32,7 @@ pipeline {
         COVERAGE_VERSION = '7.16.0'
         RELEASE_POLICY_ID = 'FIN-SW-DEVSECOPS-RELEASE'
         RELEASE_POLICY_VERSION = '5.1.1'
-        RELEASE_POLICY_SHA256 = 'b77b6eb68d501c30027c827342488c70245a84e224be085c88bb86dd873e8027'
+        RELEASE_POLICY_SHA256 = '66ec3aad8f5b42e26d2b1290e0e3956dd17fa382b4a8478e9f33fb312ea111b3'
         TRIVY_DB_METADATA_PATH = '/var/lib/trivy/db/metadata.json'
     }
 
@@ -179,7 +179,7 @@ pipeline {
         stage('Approved Release Gate') {
             when { branch 'main' }
             steps {
-                input message: '생성된 Release Subject를 ITSM에서 승인했습니까?', ok: '증적 생성'
+                input message: '생성된 ReleaseSubject를 ITSM에서 승인했습니까?', ok: '증적 생성'
                 withCredentials([
                     string(credentialsId: 'finguard-scan-attestation-key', variable: 'FINGUARD_SCAN_ATTESTATION_KEY'),
                     file(credentialsId: 'finguard-itsm-cosign-public-key', variable: 'FINGUARD_APPROVAL_COSIGN_PUBLIC_KEY'),
@@ -213,7 +213,7 @@ pipeline {
                 }
             }
             steps {
-                input message: '승인된 digest를 운영에 배포합니까?', ok: '배포'
+                input message: '승인된 이미지 다이제스트를 운영에 배포합니까?', ok: '배포'
                 withCredentials([
                     file(credentialsId: 'finguard-evidence-cosign-public-key', variable: 'FINGUARD_EVIDENCE_COSIGN_PUBLIC_KEY'),
                     string(credentialsId: 'finguard-deployment-cosign-signing-key', variable: 'FINGUARD_DEPLOYMENT_COSIGN_SIGNING_KEY')

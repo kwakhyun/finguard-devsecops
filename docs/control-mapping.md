@@ -26,7 +26,7 @@
 | GitLab CI | CI-01 | `needs` DAG, 루트 권한이 필요 없는 BuildKit 단일 빌드, Code Quality, 리소스 그룹 | `.gitlab-ci.yml` |
 | Jenkins | CI-02 | 병렬 검사, Podman 단일 빌드, 자격 증명 바인딩, 수동 승인 | `Jenkinsfile` |
 | 공개 CI 재현 | CI-03 | GitHub Actions에서 품질 검사와 E2E 데모, 실제 Semgrep, Trivy, ZAP 결과를 정책 게이트로 판정 | `.github/workflows/portfolio-ci.yml`, 종료 코드 계약 테스트 |
-| 공급망 고정 | SUP-03 | CI와 Dockerfile에서 이미지 다이제스트 요구, 인프라 이미지 실행 전 검증 | `validate-images`, `validate_onprem_images.py` |
+| 공급망 고정 | SUP-03 | CI와 Dockerfile에서 이미지 다이제스트 요구, 온프레미스 인프라 이미지의 다이제스트 및 Cosign 서명 검증 | `validate-images`, `validate_onprem_images.py`, 운영 스크립트 테스트 |
 | 의존성 갱신 | SUP-04 | Python과 GitHub Actions 의존성을 Dependabot이 주간 주기로 점검 | `.github/dependabot.yml`, GitHub 취약점 알림 |
 | 배포 통제 | DEP-01 | PASS 증적, Cosign, 정책 ID와 버전 및 원문 해시, 증적 유효성, 클러스터와 워크로드 및 이미지가 승인 대상과 일치하는지 확인, RBAC 및 배포 시간 창구 검증 | `finguard/deployment.py`, 오래된 증적 회귀 테스트 |
 | 자동 롤백 | DEP-02 | 롤아웃, 스모크 테스트, 결과 저장 또는 서명에 실패하면 직전 불변 이미지와 기존 감사 애너테이션 복원 | 배포 실패 테스트 |

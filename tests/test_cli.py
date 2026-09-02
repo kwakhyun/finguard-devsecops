@@ -3,13 +3,22 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import json
+import tomllib
 from pathlib import Path
+
+import pytest
 
 from finguard.attestation import load_scan_attestation
 from finguard.cli import EXIT_GATE_FAILED, EXIT_INPUT_ERROR, EXIT_OK, main
 
 
-def test_cli_scan_writes_normalized_report(tmp_path: Path, capsys) -> None:
+def test_cli_scan_writes_normalized_report(project_root: Path, tmp_path: Path, capsys) -> None:
+    project = tomllib.loads((project_root / "pyproject.toml").read_text(encoding="utf-8"))
+    with pytest.raises(SystemExit) as version_exit:
+        main(["--version"])
+    assert version_exit.value.code == EXIT_OK
+    assert capsys.readouterr().out.strip() == f"finguard {project['project']['version']}"
+
     workspace = tmp_path / "workspace"
     workspace.mkdir()
     (workspace / "safe.py").write_text("value = 1\n", encoding="utf-8")

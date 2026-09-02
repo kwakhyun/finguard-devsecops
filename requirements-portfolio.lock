@@ -1,6 +1,0 @@
-# Generated and validated on Python 3.11. Install with:
-#   python -m pip install -r requirements-portfolio.lock
-charset-normalizer==3.5.1
-pillow==12.3.0
-pypdf==6.10.0
-reportlab==4.4.9

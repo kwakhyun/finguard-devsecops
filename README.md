@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/brand/finguard-icon.png" alt="FinGuard 로고" width="160">
+</p>
+
 # FinGuard: 온프레미스 DevSecOps 릴리스 게이트
 
 [![CI](https://github.com/kwakhyun/finguard-devsecops/actions/workflows/portfolio-ci.yml/badge.svg)](https://github.com/kwakhyun/finguard-devsecops/actions/workflows/portfolio-ci.yml)

@@ -1,5 +1,20 @@
 # 변경 이력
 
+## Unreleased
+
+- 입력 스냅샷에 파일별 크기, 전체 용량과 항목 수 제한을 적용하고 복사 중 증가하는 파일 및 일반 파일이 아닌 입력을 차단
+- 통합 테스트의 자원 정리를 독립적으로 수행하고 원래 실패 원인을 보존
+- VEX의 반복 목록 삭제를 집합 기반 필터링으로 변경하고 지문 해시, 섀도 비교와 증적 입력 해시의 중복 연산 축소
+- 게이트 실행 서비스를 CLI에서 분리하고 증적 생성, 검증, 저장과 요약 렌더링의 책임 분리
+- 공개 CI에서 pytest 보고서를 재사용하고 기존 필수 검사 이름과 실패 판정을 유지
+
+- Recover from SIGINT/SIGTERM during deployment; preserve a pre-mutation recovery journal and disable GitLab deployment auto-cancellation.
+- Reserve audit paths before mutation, prepare signatures before publishing results, and reject concurrent output collisions without overwriting another writer.
+- Pull digest-bound DAST images into each job's Podman storage with ephemeral GitLab registry authentication.
+- Add real kind/Cosign release integration scenarios and a dedicated GitHub Actions job.
+- Split policy checks, policy models and validation, and CLI argument declarations into focused modules.
+
+
 이 문서는 FinGuard의 주요 변경을 기록합니다.
 
 ## 0.6.5 - 2026-09-03

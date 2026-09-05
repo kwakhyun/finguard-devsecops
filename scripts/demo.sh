@@ -20,7 +20,11 @@ mkdir -p "${project_dir}/build"
 demo_output="$(mktemp -d "${project_dir}/build/demo-evidence.XXXXXX")"
 export FINGUARD_DEMO_SIGNING_KEY="${FINGUARD_DEMO_SIGNING_KEY:-local-demo-only-do-not-reuse}"
 
-"${python_bin}" -m pytest -q
+case "${1:-}" in
+  "") "${python_bin}" -m pytest -q ;;
+  --skip-tests) ;;
+  *) echo "Usage: $0 [--skip-tests]" >&2; exit 3 ;;
+esac
 "${python_bin}" -m finguard scan source --workspace . --output build/reports/native
 "${python_bin}" -m finguard scan lint --workspace . --output build/reports/native
 "${python_bin}" -m finguard scan dependencies --workspace . --output build/reports/native

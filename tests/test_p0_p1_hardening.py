@@ -394,7 +394,7 @@ def test_cli_loads_and_captures_strict_attestations(
     )
     monkeypatch.setenv("TEST_SCAN_KEY", "scan-attestation-test-key")
     monkeypatch.setenv("TEST_EVIDENCE_KEY", "evidence-test-key")
-    monkeypatch.setattr("finguard.cli.cosign_verify_blob", lambda *args, **kwargs: None)
+    monkeypatch.setattr("finguard.gate_service.cosign_verify_blob", lambda *args, **kwargs: None)
     approval_bundle = tmp_path / "approval-attestation.sigstore.json"
     approval_bundle.write_text("{}\n", encoding="utf-8")
     scenario = project_root / "examples/scenarios/pass"

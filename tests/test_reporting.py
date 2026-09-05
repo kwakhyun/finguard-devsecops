@@ -202,3 +202,27 @@ def test_compare_decisions_reports_added_and_removed_items() -> None:
     assert comparison["added_violations"] == ["NEW_POLICY_RULE"]
     assert comparison["newly_active_findings"]
     assert comparison["no_longer_active_findings"]
+
+
+def test_comparison_does_not_serialize_complete_gate_results(project_root, monkeypatch):
+    from dataclasses import replace
+
+    from finguard.config import Policy
+    from finguard.gate import PolicyEngine
+    from finguard.models import Finding, GateResult, GateViolation, Severity
+    from finguard.reporting import compare_decisions, compare_gate_results
+
+    first = PolicyEngine(Policy.load(project_root / "policies/merge-request.toml")).evaluate([])
+    second = replace(
+        first,
+        policy_version="next",
+        violations=[GateViolation("NEW", "new")],
+        active_findings=[Finding("test", "sast", "RULE", Severity.HIGH, "issue")],
+    )
+    expected = compare_decisions(first.to_dict(), second.to_dict())
+
+    def reject_serialization(self):
+        raise AssertionError("comparison must only project fields it needs")
+
+    monkeypatch.setattr(GateResult, "to_dict", reject_serialization)
+    assert compare_gate_results(first, second) == expected

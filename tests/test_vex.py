@@ -209,3 +209,33 @@ def test_unknown_scanner_reported_vex_state_is_a_policy_violation(
     result = PolicyEngine(_policy(project_root)).evaluate([scan], now=NOW)
 
     assert "VEX_STATE_INVALID" in {item.code for item in result.violations}
+
+
+def test_vex_partition_preserves_order_and_rejections(project_root, tmp_path):
+    from finguard.checks.suppression import SuppressionChecks
+    from finguard.models import Finding, Severity
+
+    findings = [
+        Finding("test", "sca", f"CVE-2099-{i}", Severity.HIGH, "issue", component=f"package-{i}")
+        for i in range(30)
+    ]
+    findings[5] = replace(findings[5], severity=Severity.CRITICAL)
+    subject = _subject(project_root, "a" * 64)
+    attestation = _signed_vex(tmp_path, subject=subject, fingerprint=findings[0].fingerprint)
+    statements = tuple(
+        VexStatement(
+            item.fingerprint,
+            "not_affected",
+            "code_not_reachable",
+            "Reviewed execution paths cannot reach vulnerable code.",
+        )
+        for item in reversed(findings[::2] + [findings[5]])
+    )
+    attestation = replace(attestation, statements=statements)
+    violations = []
+    active, vexed = SuppressionChecks(_policy(project_root)).apply_vex(
+        findings, attestation, subject, NOW, violations
+    )
+    assert active == findings[1::2]
+    assert vexed == list(reversed(findings[::2]))
+    assert [item.code for item in violations] == ["VEX_SEVERITY_NOT_SUPPRESSIBLE"]

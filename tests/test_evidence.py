@@ -10,10 +10,10 @@ from finguard.change import ChangeRequest
 from finguard.config import Policy
 from finguard.errors import EvidenceVerificationError
 from finguard.evidence import (
-    _verify_manifest_shape,
     create_evidence_bundle,
     verify_evidence_bundle,
 )
+from finguard.evidence_verifier import _verify_manifest_shape
 from finguard.gate import PolicyEngine
 from finguard.parsers import discover_reports, parse_report
 from finguard.release import ReleaseSubject

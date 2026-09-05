@@ -7,6 +7,7 @@ from pathlib import Path
 from finguard.attestation import sha256_path
 from finguard.errors import ReportParseError
 from finguard.models import ScanResult
+from finguard.snapshots import MAX_INPUT_FILES
 
 from .common import load_json
 from .json_scanners import (
@@ -28,13 +29,17 @@ SUPPORTED_SUFFIXES = {".json", ".xml", ".sarif"}
 def discover_reports(directory: Path) -> list[Path]:
     if not directory.is_dir():
         raise ReportParseError(f"report directory does not exist: {directory}")
-    return sorted(
-        path
-        for path in directory.rglob("*")
-        if path.is_file()
-        and path.suffix.lower() in SUPPORTED_SUFFIXES
-        and not path.name.endswith(".attestation.json")
-    )
+    reports: list[Path] = []
+    for path in directory.rglob("*"):
+        if (
+            path.is_file()
+            and path.suffix.lower() in SUPPORTED_SUFFIXES
+            and not path.name.endswith(".attestation.json")
+        ):
+            if len(reports) >= MAX_INPUT_FILES:
+                raise ReportParseError(f"report discovery exceeds {MAX_INPUT_FILES} files")
+            reports.append(path)
+    return sorted(reports)
 
 
 def parse_report(path: Path, report_type: str | None = None) -> ScanResult:

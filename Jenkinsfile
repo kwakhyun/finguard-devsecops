@@ -145,6 +145,7 @@ pipeline {
                     sh 'cosign verify --key "$FINGUARD_TOOL_IMAGE_COSIGN_PUBLIC_KEY" "${ZAP_IMAGE}"'
                 }
                 sh 'cp config/zap-rules.conf "$REPORT_DIR/zap-rules.conf"'
+                sh '$PYTHON scripts/prepare_dast_images.py "$IMMUTABLE_IMAGE_REF" "$ZAP_IMAGE"'
                 sh 'podman network create "finguard-${BUILD_NUMBER}"'
                 sh 'podman run --detach --name "finguard-target-${BUILD_NUMBER}" --network "finguard-${BUILD_NUMBER}" --pull=never "$IMMUTABLE_IMAGE_REF"'
                 sh 'for attempt in $(seq 1 30); do podman exec "finguard-target-${BUILD_NUMBER}" python -m sample_service.healthcheck && break; sleep 1; done'

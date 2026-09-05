@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import datetime as dt
 import hmac
-import json
 import re
 import subprocess
 import time
@@ -18,13 +17,14 @@ from typing import Any
 
 from .change import ChangeRequest
 from .config import Policy
+from .deployment_records import DeploymentRecords
+from .deployment_signals import DeploymentSignals
 from .errors import ConfigurationError, DeploymentError, EvidenceVerificationError
 from .evidence import sha256_file, verify_evidence_bundle
 from .jsonio import strict_json_loads
 from .release import ReleaseSubject, commit_matches
-from .safeio import assert_no_symlink_components, atomic_write_text
+from .safeio import assert_no_symlink_components
 from .signing import Runner as SigningRunner
-from .signing import cosign_sign_blob
 
 Runner = Callable[..., subprocess.CompletedProcess[str]]
 HealthChecker = Callable[[str, float], bool]
@@ -120,6 +120,51 @@ def deploy(
         result_cosign_bundle=result_cosign_bundle,
         result_signing_enabled=bool(result_cosign_signing_key),
     )
+    with (
+        DeploymentSignals() as signals,
+        DeploymentRecords(
+            request.output,
+            signing_key=result_cosign_signing_key,
+            bundle=result_cosign_bundle,
+            runner=result_cosign_runner,
+            force=request.force_output,
+        ) as records,
+    ):
+        return _deploy(
+            request,
+            records=records,
+            signals=signals,
+            signing_key=signing_key,
+            cosign_verification_key=cosign_verification_key,
+            cosign_certificate_identity=cosign_certificate_identity,
+            cosign_certificate_oidc_issuer=cosign_certificate_oidc_issuer,
+            cosign_runner=cosign_runner,
+            result_cosign_signing_key=result_cosign_signing_key,
+            dry_run=dry_run,
+            runner=runner,
+            health_checker=health_checker,
+            sleeper=sleeper,
+            now=now,
+        )
+
+
+def _deploy(
+    request: DeploymentRequest,
+    *,
+    records: DeploymentRecords,
+    signals: DeploymentSignals,
+    signing_key: bytes | None = None,
+    cosign_verification_key: str = "",
+    cosign_certificate_identity: str = "",
+    cosign_certificate_oidc_issuer: str = "",
+    cosign_runner: SigningRunner | None = None,
+    result_cosign_signing_key: str = "",
+    dry_run: bool = False,
+    runner: Runner = subprocess.run,
+    health_checker: HealthChecker | None = None,
+    sleeper: Sleeper = time.sleep,
+    now: dt.datetime | None = None,
+) -> dict[str, Any]:
     if not request.require_signature and not dry_run:
         raise ConfigurationError("unsigned evidence is allowed only for dry-run deployments")
     if not dry_run and not result_cosign_signing_key.strip():
@@ -270,14 +315,7 @@ def deploy(
                 "completed_at": dt.datetime.now(dt.UTC).isoformat(),
             }
         )
-        _persist_record(
-            request.output,
-            record,
-            signing_key=result_cosign_signing_key,
-            bundle=result_cosign_bundle,
-            runner=result_cosign_runner,
-            force=request.force_output,
-        )
+        records.persist(record)
         return record
 
     preflight = [
@@ -326,6 +364,8 @@ def deploy(
             ),
             "--overwrite",
         ]
+        record["status"] = "prepared"
+        records.checkpoint(record)
         mutation_attempted = True
         _run(runner, set_image, request.timeout_seconds)
         _run(runner, annotate, request.timeout_seconds)
@@ -344,21 +384,19 @@ def deploy(
         }
         record["status"] = "succeeded"
         record["completed_at"] = dt.datetime.now(dt.UTC).isoformat()
-        _persist_record(
-            request.output,
-            record,
-            signing_key=result_cosign_signing_key,
-            bundle=result_cosign_bundle,
-            runner=result_cosign_runner,
-            force=request.force_output,
-        )
+        records.checkpoint(record)
+        records.persist(record)
+        signals.recovering = True
     except (
         subprocess.SubprocessError,
         OSError,
         DeploymentError,
         EvidenceVerificationError,
+        ConfigurationError,
+        KeyboardInterrupt,
     ) as exc:
-        record["status"] = "failed"
+        signals.recovering = True
+        record["status"] = "interrupted" if isinstance(exc, KeyboardInterrupt) else "failed"
         record["error"] = _safe_error(exc)
         if mutation_attempted:
             try:
@@ -372,20 +410,16 @@ def deploy(
                 record["rollback_error"] = _safe_error(rollback_error)
         record["completed_at"] = dt.datetime.now(dt.UTC).isoformat()
         try:
-            _persist_record(
-                request.output,
-                record,
-                signing_key=result_cosign_signing_key,
-                bundle=result_cosign_bundle,
-                runner=result_cosign_runner,
-                force=request.force_output,
-            )
-        except (DeploymentError, EvidenceVerificationError) as record_error:
+            records.checkpoint(record)
+            records.persist(record)
+        except (DeploymentError, EvidenceVerificationError, ConfigurationError) as record_error:
             raise DeploymentError(
                 "deployment failed; rollback status: "
                 f"{record.get('rollback_status', 'not-required')}; "
                 "deployment result persistence failed"
             ) from record_error
+        if isinstance(exc, KeyboardInterrupt):
+            raise
         if not mutation_attempted and isinstance(exc, DeploymentError):
             raise DeploymentError(str(exc)) from exc
         raise DeploymentError(
@@ -481,42 +515,6 @@ def _validate_result_paths(
             raise ConfigurationError(
                 "deployment result signature must be outside the evidence bundle"
             )
-
-
-def _write_record(path: Path, record: dict[str, Any]) -> None:
-    try:
-        atomic_write_text(
-            path,
-            json.dumps(record, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
-            context="deployment record",
-        )
-    except ConfigurationError as exc:
-        raise DeploymentError(str(exc)) from exc
-
-
-def _persist_record(
-    path: Path,
-    record: dict[str, Any],
-    *,
-    signing_key: str,
-    bundle: Path | None,
-    runner: SigningRunner | None,
-    force: bool,
-) -> None:
-    _write_record(path, record)
-    if not signing_key:
-        return
-    target_bundle = bundle or Path(f"{path}.sigstore.json")
-    if runner is None:
-        cosign_sign_blob(path, target_bundle, key=signing_key, force=force)
-    else:
-        cosign_sign_blob(
-            path,
-            target_bundle,
-            key=signing_key,
-            runner=runner,
-            force=force,
-        )
 
 
 def _safe_error(error: BaseException) -> str:

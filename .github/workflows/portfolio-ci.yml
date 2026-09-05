@@ -20,10 +20,40 @@ env:
   ZAP_IMAGE: "ghcr.io/zaproxy/zaproxy@sha256:65f8bee15a648ca4a0b6a25e1096fc76af6eea42ab2d75f2a9649981225f30b8"
 
 jobs:
+  release-integration:
+    name: Kubernetes release and recovery
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      FINGUARD_TEST_REGISTRY_IMAGE: "registry@sha256:7518da9b12dd746278282a729dee2e65eabdeb449db4d0b28d46ef6e90308f58"
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install project and verified integration tools
+        run: |
+          python -m pip install --requirement requirements-dev.lock
+          python -m pip install --no-deps --editable .
+          bash scripts/install_integration_tools.sh "$RUNNER_TEMP/finguard-tools"
+          echo "$RUNNER_TEMP/finguard-tools" >> "$GITHUB_PATH"
+      - name: Verify actual release, rollback, signing failure and SIGTERM recovery
+        run: make integration-release PYTHON=python
+      - name: Preserve integration evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: finguard-kubernetes-release
+          path: build/integration-release/
+          if-no-files-found: error
+          retention-days: 14
+
   quality-and-demo:
     name: Quality and E2E gate
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 40
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -41,12 +71,15 @@ jobs:
           python -m pip install --no-deps --editable .
 
       - name: Run quality checks
-        run: make quality PYTHON=python
+        id: quality
+        continue-on-error: true
+        run: make quality PYTHON=python QUALITY_REPORT_DIR=build/public-ci/reports
 
       - name: Run passing and blocked scenarios
+        if: steps.quality.outcome == 'success'
         env:
           FINGUARD_PYTHON: python
-        run: ./scripts/demo.sh
+        run: ./scripts/demo.sh --skip-tests
 
       - name: Preserve local gate evidence
         if: always()
@@ -57,37 +90,17 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-  security-gate:
-    name: Real SAST, SCA and DAST
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    steps:
-      - name: Check out source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
-          cache-dependency-path: requirements-dev.lock
-
-      - name: Install project and pinned Semgrep
+      - name: Install pinned Semgrep
         run: |
-          python -m pip install --requirement requirements-dev.lock
-          python -m pip install --no-deps --editable .
           python -m venv "$RUNNER_TEMP/semgrep-venv"
           "$RUNNER_TEMP/semgrep-venv/bin/pip" install "semgrep==$SEMGREP_VERSION"
 
-      - name: Generate quality reports
+      - name: Require shared quality reports
         run: |
-          mkdir -p build/public-ci/reports build/public-ci/zap
-          ruff check . --exit-zero --output-format=json --output-file=build/public-ci/reports/ruff.json
-          pytest_status=0
-          pytest --junitxml=build/public-ci/reports/junit.xml \
-            --cov=finguard --cov-report=xml:build/public-ci/reports/coverage.xml \
-            || pytest_status=$?
-          test "$pytest_status" -le 1
+          test -s build/public-ci/reports/junit.xml
+          test -s build/public-ci/reports/coverage.xml
+          test -s build/public-ci/reports/ruff.json
+          mkdir -p build/public-ci/zap
 
       - name: Run Semgrep SAST
         run: |
@@ -162,3 +175,21 @@ jobs:
           path: build/public-ci/
           if-no-files-found: error
           retention-days: 14
+
+      - name: Enforce quality check outcome
+        if: always() && steps.quality.outcome != 'success'
+        run: exit 1
+
+  # Preserve the existing required check name while executing scanners and tests
+  # once in the shared workspace above.
+  security-gate:
+    name: Real SAST, SCA and DAST
+    needs: quality-and-demo
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require the combined quality and security result
+        env:
+          COMBINED_RESULT: ${{ needs.quality-and-demo.result }}
+        run: test "$COMBINED_RESULT" = success

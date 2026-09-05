@@ -70,6 +70,14 @@ def test_gitlab_dast_resources_are_unique_per_job(project_root: Path) -> None:
     dast = pipeline.split("dast-release:", 1)[1].split("quality-gate-merge-request:", 1)[0]
     assert "finguard-${CI_PIPELINE_ID}-${CI_JOB_ID}" in dast
     assert "finguard-target-${CI_PIPELINE_ID}-${CI_JOB_ID}" in dast
+    assert dast.index("prepare_dast_images.py") < dast.index("podman run --detach")
+
+
+def test_production_job_cannot_be_auto_cancelled(project_root: Path) -> None:
+    pipeline = (project_root / ".gitlab-ci.yml").read_text(encoding="utf-8")
+    deployment = pipeline.split("deploy-production:", 1)[1]
+    assert "interruptible: false" in deployment
+    assert "build/deployment-result.json.recovery.json" in deployment
 
 
 def test_ci_does_not_hide_scanner_operational_failures(project_root: Path) -> None:
@@ -173,7 +181,7 @@ def test_public_portfolio_ci_routes_findings_to_finguard_without_hiding_tool_err
     project_root: Path,
 ) -> None:
     workflow = (project_root / ".github/workflows/portfolio-ci.yml").read_text(encoding="utf-8")
-    quality = workflow.split("- name: Generate quality reports", 1)[1].split(
+    quality = workflow.split("- name: Require shared quality reports", 1)[1].split(
         "- name: Run Semgrep SAST", 1
     )[0]
     semgrep = workflow.split("- name: Run Semgrep SAST", 1)[1].split("- name: Run Trivy SCA", 1)[0]
@@ -181,9 +189,13 @@ def test_public_portfolio_ci_routes_findings_to_finguard_without_hiding_tool_err
         "- name: Preserve scanner reports", 1
     )[0]
 
-    assert "pytest_status=0" in quality
-    assert "|| pytest_status=$?" in quality
-    assert 'test "$pytest_status" -le 1' in quality
+    assert "test -s build/public-ci/reports/junit.xml" in quality
+    assert "test -s build/public-ci/reports/coverage.xml" in quality
+    assert "--skip-tests" in workflow
+    assert "QUALITY_REPORT_DIR=build/public-ci/reports" in workflow
+    assert "pytest " not in workflow
+    assert "Enforce quality check outcome" in workflow
+    assert "if: always() && steps.quality.outcome != 'success'" in workflow
     assert "--error" not in semgrep
     assert "gate_status=0" in gate
     assert "|| gate_status=$?" in gate

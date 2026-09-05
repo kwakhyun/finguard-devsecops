@@ -13,6 +13,19 @@ FinGuard는 서로 다른 품질 및 보안 보고서를 하나의 모델로 정
 
 이 저장소는 채용 지원을 위해 설계한 독립 포트폴리오입니다. 예제 스캔 보고서와 샘플 서비스를 사용했으며, 실제 운영 환경 적용 사례나 규제 준수 인증을 주장하지 않습니다.
 
+## 먼저 확인할 결과
+
+| 확인할 상황 | 기대 동작 | 재현 방법 |
+| --- | --- | --- |
+| 정상 입력과 위험한 변경 | 정상 입력은 PASS, 취약점과 승인 위반이 있는 변경은 종료 코드 2로 차단 | `./scripts/demo.sh` |
+| 배포 중 SIGINT/SIGTERM | 변경 전 저장한 이미지와 감사 애너테이션 복원 후 중단 결과 기록 | `make integration-release` |
+| 결과 서명 장애 | 이전 이미지로 복구하고 서명되지 않은 복구 기록 보존 | `make integration-release` |
+| 같은 결과 경로의 동시 사용 | 두 번째 배포는 변경 전에 차단, 다른 작성자의 파일은 보존 | 배포 수명주기 회귀 테스트와 통합 테스트 |
+
+후속 구조 및 성능 개선 후 Python 테스트 225개와 커버리지 86.52%를 확인했습니다. 앞선 실제 클러스터 배포 및 복구 검증은 [별도 실행 기록](docs/verification/2026-09-05-release-integration.json)에 있으며, 후속 변경에서 Kubernetes 테스트를 다시 실행한 결과는 아닙니다.
+
+실제 Kubernetes 배포와 Cosign 검증을 실행하는 방법은 [릴리스 통합 테스트 가이드](docs/integration-testing.md)에 있습니다. 보안 보고서와 승인 입력은 예제를 사용하며, 실제 ITSM이나 KMS를 연결한 검증과는 범위가 다릅니다.
+
 ## 프로젝트 정보
 
 - 개발자: [@kwakhyun](https://github.com/kwakhyun)
@@ -77,7 +90,7 @@ flowchart LR
     P -->|실패| Q[자동 롤백]
 ```
 
-GitLab과 Jenkins 파이프라인은 변경 검증과 운영 릴리스의 신뢰 경계를 분리합니다.
+GitLab과 Jenkins 파이프라인은 변경 검증과 운영 릴리스의 신뢰 경계를 분리합니다. DAST 잡은 자신의 Podman 저장소에 대상 이미지와 ZAP 이미지를 다이제스트로 내려받은 뒤 실행합니다. GitLab 레지스트리 인증 파일은 잡 전용 임시 디렉터리에 만들고 이미지 준비 후 제거합니다. 운영 배포 잡은 `interruptible: false`로 중복 파이프라인 자동 취소를 막습니다.
 변경 검증 작업에는 변경 승인, 서명, Kubernetes 자격 증명을 주입하지 않습니다.
 릴리스 경로에서는 루트 권한이 필요 없는 BuildKit 또는 Podman으로 이미지를 한 번만 빌드합니다. 이후 레지스트리가 반환한 동일한 다이제스트를 SCA, DAST, 승인, 배포에 재사용합니다.
 
@@ -137,7 +150,7 @@ make demo-pass
 
 검증을 시작하기 전에 증적 디렉터리를 전용 스냅샷으로 고정하므로, 오래됐거나 미래 시각인 증적은 재사용할 수 없습니다.
 
-롤아웃, 스모크 테스트 또는 배포 결과 서명에 실패하면 배포 직전에 확인한 이전 이미지 다이제스트와 FinGuard 감사 애너테이션을 복원합니다. 실제 배포에는 `--result-cosign-signing-key`가 필요하며, 결과 파일은 기본적으로 덮어쓰지 않습니다.
+롤아웃, 스모크 테스트 또는 배포 결과 서명에 실패하면 배포 직전에 확인한 이전 이미지 다이제스트와 FinGuard 감사 애너테이션을 복원합니다. 실제 배포에는 `--result-cosign-signing-key`가 필요합니다. 결과 JSON과 서명 경로를 배타적으로 예약하고, 서명을 준비한 뒤 JSON을 마지막에 게시합니다. 다른 작성자의 파일이 먼저 생기면 덮어쓰지 않고 복구합니다. 변경 전에는 `<결과 경로>.recovery.json`에 이전 이미지와 감사 애너테이션을 저장합니다. 이 파일은 서명된 최종 결과와 구분하는 로컬 복구 기록입니다.
 
 ## 온프레미스 예시
 
@@ -155,6 +168,7 @@ make onprem-up
 
 ```text
 finguard/                 CLI, 정규화, 정책, 스캔 실행 증명서, 증적, 배포
+finguard/checks/          품질, 출처, 변경 승인, 예외 및 VEX 검사
 policies/                 변경 검증, 로컬 기준, 운영 릴리스 정책과 예외 예시
 .semgrep/                 Python Secure Coding 규칙
 examples/scenarios/       재현 가능한 PASS와 FAIL 입력
@@ -166,6 +180,14 @@ scripts/                  데모와 CI 보조 도구
 .gitlab-ci.yml            GitLab MR과 릴리스 파이프라인
 Jenkinsfile               같은 통제를 구현한 Jenkins 파이프라인
 ```
+
+## 입력 제한과 실행 비용
+
+`gate`, `verify`, `deploy`는 입력을 비공개 스냅샷으로 복사하면서 파일당 50 MiB, 명령당 합계 512 MiB, 최대 2,048개 항목을 허용합니다. 증적 디렉터리는 하위 디렉터리도 항목 수에 포함합니다. 복사 중 파일이 커지거나 제한을 넘으면 종료 코드 3으로 중단하고, 링크와 일반 파일이 아닌 입력도 거부합니다. 입력을 자동으로 잘라서 판정하지 않습니다.
+
+`make quality`는 JUnit, 커버리지 XML, Ruff JSON을 `build/quality-reports/`에 남깁니다. `QUALITY_REPORT_DIR`로 출력 위치를 바꿀 수 있습니다. 공개 CI는 같은 작업 공간에서 이 보고서를 보안 게이트에 재사용하고 전체 pytest를 한 번 실행합니다. 별도 실행하는 `./scripts/demo.sh`는 테스트를 포함하며, 품질 검사를 이미 마쳤다면 `./scripts/demo.sh --skip-tests`로 데모만 실행할 수 있습니다.
+
+VEX는 제외할 지문을 집합에 모은 뒤 한 번 필터링합니다. 지문 해시는 식별 정보가 같은 경우에만 재사용하고, 섀도 정책 비교는 필요한 필드만 읽습니다. 구조와 측정 범위는 [아키텍처 문서](docs/architecture.md)에 설명했습니다.
 
 ## 자세한 문서
 
@@ -179,10 +201,10 @@ Jenkinsfile               같은 통제를 구현한 Jenkins 파이프라인
 ## 검증한 범위와 남은 한계
 
 - 핵심 로직은 Python 3.11 표준 라이브러리만 사용하고 단위 및 통합 테스트로 검증했습니다.
-- 현재 회귀 테스트는 195개이며 Ruff, Mypy, 85% 이상의 커버리지 기준과 함께 실행합니다.
-- 공개 GitHub Actions는 Semgrep, Trivy, OWASP ZAP을 실제 실행합니다. 테스트 실패와 보안 탐지 결과는 보고서로 보존한 뒤 FinGuard 정책 게이트에서 최종 판정합니다.
+- 회귀 테스트는 Ruff, Mypy, 85% 이상의 커버리지 기준과 함께 `make quality`로 실행합니다. 배포 중단, 경로 예약, 동시 쓰기 충돌과 서명 실패도 검증합니다.
+- 공개 GitHub Actions는 Semgrep, Trivy, OWASP ZAP을 실제 실행합니다. 테스트 실패와 보안 탐지 결과는 보고서로 보존해 FinGuard 정책 게이트에 전달합니다. 정적 검사, 테스트 또는 커버리지 기준이 실패하면 최종 CI도 실패합니다.
 - 공개 저장소의 `main`은 Pull Request와 필수 CI 검사를 통과해야 변경할 수 있으며, 강제 푸시와 삭제를 차단합니다. Dependabot은 Python 및 GitHub Actions 의존성을 주간 주기로 점검합니다.
-- Cosign과 kubectl은 CI 어댑터 및 하위 프로세스 계약 테스트로 검증했으며, 실제 온프레미스 서버나 Kubernetes 클러스터를 기동한 실적은 아닙니다.
+- 별도 `release-integration` CI 잡은 임시 kind 클러스터와 로컬 레지스트리, 실제 Cosign 바이너리로 배포와 복구를 검증합니다. 테스트 결과와 한계는 [통합 테스트 가이드](docs/integration-testing.md)에 기록합니다. 실제 온프레미스 운영 적용 실적은 아닙니다.
 - 범용 SARIF 어댑터로 Coverity와 SonarQube 내보내기 결과를 읽을 수 있지만 상용 서버 API와 직접 통합하지는 않았습니다.
 - FOSSA 제품 실행은 검증 범위에 포함하지 않았습니다. 대신 Trivy, CycloneDX, SPDX로 OSS 취약점과 라이선스 관리 통제를 구현했습니다.
 - 실제 도입 시 ITSM 및 IdP API, 워크로드 아이덴티티 기반 스캐너 서명, 서명된 정책 번들, WORM 증적 저장소, SIEM 전송, 데이터베이스 마이그레이션 통제를 추가해야 합니다.

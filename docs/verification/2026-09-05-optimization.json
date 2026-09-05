@@ -1,0 +1,25 @@
+{
+  "measured_at": "2026-09-05T04:37:42.404581+00:00",
+  "python": "3.11.4",
+  "platform": "macOS-26.6.2-arm64-arm-64bit",
+  "scope": "Synthetic in-memory VEX application only; excludes parsing, crypto, container operations and CI scheduling.",
+  "method": "Three paired runs per size, median process CPU time. Reverse statement order. Same attestation checks, findings and fingerprint cache in both paths; reference substitutes previous list.remove algorithm. Output order and violations asserted equal.",
+  "note": "Wall-clock measurements showed substantial scheduling variance; process CPU time is recorded to isolate this computation. No end-to-end or CI speedup is claimed.",
+  "vex": [
+    {
+      "findings": 1000,
+      "list_removal_reference_median_cpu_seconds": 0.167202,
+      "optimized_median_cpu_seconds": 0.005604
+    },
+    {
+      "findings": 3000,
+      "list_removal_reference_median_cpu_seconds": 1.628081,
+      "optimized_median_cpu_seconds": 0.022261
+    },
+    {
+      "findings": 6000,
+      "list_removal_reference_median_cpu_seconds": 5.860325,
+      "optimized_median_cpu_seconds": 0.035081
+    }
+  ]
+}

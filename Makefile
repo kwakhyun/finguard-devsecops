@@ -1,11 +1,13 @@
-.PHONY: help test quality scan demo-pass demo-fail verify onprem-validate onprem-up clean
+.PHONY: help test quality integration-release scan demo-pass demo-fail verify onprem-validate onprem-up clean
 
 PYTHON ?= .venv/bin/python
 BUILD_DIR ?= build
+QUALITY_REPORT_DIR ?= $(BUILD_DIR)/quality-reports
 
 help:
 	@echo "test       Run the unit and integration test suite"
 	@echo "quality    Run formatter, lint, typing, tests, and coverage checks"
+	@echo "integration-release  Exercise real kind deployment, Cosign, failure, and interruption"
 	@echo "scan       Run local lint, SAST, and dependency hygiene scans"
 	@echo "demo-pass  Evaluate the passing policy scenario"
 	@echo "demo-fail  Evaluate the intentionally blocked scenario"
@@ -15,11 +17,18 @@ help:
 test:
 	$(PYTHON) -m pytest -q
 
+integration-release:
+	$(PYTHON) scripts/integration_release.py --output $(BUILD_DIR)/integration-release
+
 quality:
 	$(PYTHON) -m ruff format --check .
 	$(PYTHON) -m ruff check .
 	$(PYTHON) -m mypy finguard sample_service
-	$(PYTHON) -m pytest -q --cov=finguard --cov-fail-under=85
+	mkdir -p "$(QUALITY_REPORT_DIR)"
+	$(PYTHON) -m ruff check . --exit-zero --output-format=json --output-file="$(QUALITY_REPORT_DIR)/ruff.json"
+	$(PYTHON) -m pytest -q --cov=finguard --cov-fail-under=85 \
+		--junitxml="$(QUALITY_REPORT_DIR)/junit.xml" \
+		--cov-report=term-missing --cov-report=xml:"$(QUALITY_REPORT_DIR)/coverage.xml"
 
 scan:
 	$(PYTHON) -m finguard scan source --workspace . --output $(BUILD_DIR)/reports/native

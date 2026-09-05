@@ -3,6 +3,8 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import json
+import os
+import signal
 import subprocess
 from dataclasses import replace
 from pathlib import Path
@@ -20,6 +22,8 @@ from finguard.deployment import (
     _validate_result_paths,
     deploy,
 )
+from finguard.deployment_records import DeploymentRecords
+from finguard.deployment_signals import DeploymentInterrupted
 from finguard.errors import ConfigurationError, DeploymentError
 from finguard.evidence import create_evidence_bundle
 from finguard.gate import PolicyEngine
@@ -433,7 +437,10 @@ def test_deployment_result_signing_failure_triggers_rollback(
         "set" in command and f"api=registry.example/credit/api@sha256:{'b' * 64}" in command
         for command in calls
     )
-    record = json.loads(request.output.read_text(encoding="utf-8"))
+    assert not request.output.exists()
+    assert not Path(f"{request.output}.sigstore.json").exists()
+    record = json.loads(Path(f"{request.output}.recovery.json").read_text(encoding="utf-8"))
+    assert record["record_kind"] == "unsigned-recovery-journal"
     assert record["status"] == "failed"
     assert record["rollback_status"] == "succeeded"
 
@@ -609,3 +616,136 @@ def test_http_healthcheck_does_not_accept_redirect_status(monkeypatch) -> None:
 
     monkeypatch.setattr("urllib.request.build_opener", lambda *handlers: Opener())
     assert _http_healthcheck("https://service.example/health", 1.0) is False
+
+
+@pytest.mark.parametrize("stop", ["keyboard", "sigint", "sigterm"])
+def test_interrupt_restores_image_and_records_recovery(project_root, tmp_path, stop):
+    evidence, key = _evidence(project_root, tmp_path)
+    request = _request(evidence, tmp_path)
+    calls = []
+    interrupted = False
+    previous_handler = signal.getsignal(signal.SIGTERM)
+
+    def runner(command, **kwargs):
+        nonlocal interrupted
+        calls.append(command)
+        if "can-i" in command:
+            return subprocess.CompletedProcess(command, 0, stdout="yes", stderr="")
+        if "get" in command:
+            return subprocess.CompletedProcess(command, 0, stdout=_deployment_state(), stderr="")
+        if "set" in command:
+            journal = json.loads(Path(f"{request.output}.recovery.json").read_text())
+            assert journal["previous_image"].endswith("b" * 64)
+            assert journal["status"] == "prepared"
+        if "status" in command and not interrupted:
+            interrupted = True
+            if stop == "keyboard":
+                raise KeyboardInterrupt()
+            os.kill(os.getpid(), signal.SIGTERM if stop == "sigterm" else signal.SIGINT)
+        elif "status" in command:
+            # A second stop request must not interrupt the recovery commands.
+            os.kill(os.getpid(), signal.SIGTERM)
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    with pytest.raises(KeyboardInterrupt) as stopped:
+        deploy(
+            request,
+            signing_key=key,
+            runner=runner,
+            result_cosign_signing_key="test-key",
+            result_cosign_runner=_successful_signer,
+            now=dt.datetime(2026, 9, 1, 13, 30, tzinfo=dt.UTC),
+        )
+    if stop != "keyboard":
+        assert isinstance(stopped.value, DeploymentInterrupted)
+        assert stopped.value.signum == (signal.SIGTERM if stop == "sigterm" else signal.SIGINT)
+    result = json.loads(request.output.read_text())
+    assert result["status"] == "interrupted"
+    assert result["rollback_status"] == "succeeded"
+    assert len([command for command in calls if "set" in command]) == 2
+    assert signal.getsignal(signal.SIGTERM) == previous_handler
+    assert not list(tmp_path.glob(".*.finguard-lock"))
+
+
+def test_concurrent_result_writer_is_preserved_and_deployment_rolled_back(project_root, tmp_path):
+    evidence, key = _evidence(project_root, tmp_path)
+    request = _request(evidence, tmp_path)
+    image_changes = []
+
+    def runner(command, **kwargs):
+        if "can-i" in command:
+            return subprocess.CompletedProcess(command, 0, stdout="yes", stderr="")
+        if "get" in command:
+            return subprocess.CompletedProcess(command, 0, stdout=_deployment_state(), stderr="")
+        if "set" in command:
+            image_changes.append(command[-1])
+        if "status" in command:
+            request.output.write_text("another writer's audit record\n")
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    with pytest.raises(DeploymentError, match="rollback status: succeeded"):
+        deploy(
+            request,
+            signing_key=key,
+            runner=runner,
+            health_checker=lambda *args: True,
+            result_cosign_signing_key="test-key",
+            result_cosign_runner=_successful_signer,
+            now=dt.datetime(2026, 9, 1, 13, 30, tzinfo=dt.UTC),
+        )
+    assert request.output.read_text() == "another writer's audit record\n"
+    assert len(image_changes) == 2
+    assert image_changes[-1].endswith("b" * 64)
+    assert not Path(f"{request.output}.sigstore.json").exists()
+    assert json.loads(Path(f"{request.output}.recovery.json").read_text())["rollback_performed"]
+
+
+@pytest.mark.parametrize("force", [False, True])
+def test_result_reservation_excludes_second_deployment(tmp_path, force):
+    output = tmp_path / "result.json"
+    with DeploymentRecords(output, signing_key="", bundle=None, runner=None, force=False):
+        with pytest.raises(ConfigurationError, match="reserved"):
+            with DeploymentRecords(output, signing_key="", bundle=None, runner=None, force=force):
+                pytest.fail("second deployment acquired the same destination")
+    assert not list(tmp_path.glob(".*.finguard-lock"))
+
+
+def test_publish_conflict_removes_only_our_signature(tmp_path, monkeypatch):
+    output = tmp_path / "result.json"
+    original_link = os.link
+
+    def competing_link(source, target, **kwargs):
+        if Path(target) == output:
+            output.write_text("concurrent result")
+        return original_link(source, target, **kwargs)
+
+    monkeypatch.setattr(os, "link", competing_link)
+    with DeploymentRecords(
+        output, signing_key="test", bundle=None, runner=_successful_signer, force=False
+    ) as records:
+        with pytest.raises(DeploymentError, match="cannot publish"):
+            records.persist({"status": "succeeded"})
+    assert output.read_text() == "concurrent result"
+    assert not Path(f"{output}.sigstore.json").exists()
+
+
+def test_signature_preparation_failure_keeps_existing_pair(tmp_path):
+    output = tmp_path / "result.json"
+    bundle = tmp_path / "signature.json"
+    output.write_text("old result")
+    bundle.write_text("old signature")
+
+    def failed_signer(command, **kwargs):
+        assert output.read_text() == "old result"
+        assert bundle.read_text() == "old signature"
+        raise subprocess.CalledProcessError(1, command)
+
+    from finguard.errors import EvidenceVerificationError
+
+    with DeploymentRecords(
+        output, signing_key="test", bundle=bundle, runner=failed_signer, force=True
+    ) as records:
+        with pytest.raises(EvidenceVerificationError):
+            records.persist({"status": "succeeded"})
+    assert output.read_text() == "old result"
+    assert bundle.read_text() == "old signature"

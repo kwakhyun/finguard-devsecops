@@ -94,6 +94,10 @@ class Finding:
     cwe: tuple[str, ...] = ()
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
+    _fingerprint_cache: tuple[tuple[tuple[str, str], ...], str] | None = field(
+        default=None, init=False, repr=False, compare=False
+    )
+
     @property
     def fingerprint(self) -> str:
         # Message text is deliberately excluded: scanner wording changes must not
@@ -130,8 +134,17 @@ class Finding:
         if category == "dast":
             identity["method"] = str(self.metadata.get("method", "")).casefold()
             identity["parameter"] = str(self.metadata.get("parameter", "")).casefold()
+        # Metadata may contain mutable aliases or DAST identity fields. Compare
+        # an immutable identity before reusing the digest; never cache by path or
+        # assume a frozen dataclass recursively freezes caller-owned metadata.
+        identity_key = tuple(sorted(identity.items()))
+        cached = self._fingerprint_cache
+        if cached is not None and cached[0] == identity_key:
+            return cached[1]
         canonical = json.dumps(identity, sort_keys=True, separators=(",", ":"))
-        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        object.__setattr__(self, "_fingerprint_cache", (identity_key, digest))
+        return digest
 
     def to_dict(self) -> dict[str, Any]:
         return {

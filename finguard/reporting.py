@@ -147,7 +147,17 @@ def prometheus_metrics(decision: Mapping[str, Any]) -> str:
 
 
 def compare_gate_results(baseline: GateResult, candidate: GateResult) -> dict[str, Any]:
-    return compare_decisions(baseline.to_dict(), candidate.to_dict())
+    def projection(result: GateResult) -> dict[str, Any]:
+        return {
+            "policy": {"id": result.policy_id, "version": result.policy_version},
+            "decision": result.decision.value,
+            "violations": [{"code": item.code} for item in result.violations],
+            "findings": {
+                "active": [{"fingerprint": item.fingerprint} for item in result.active_findings]
+            },
+        }
+
+    return compare_decisions(projection(baseline), projection(candidate))
 
 
 def compare_decisions(baseline: Mapping[str, Any], candidate: Mapping[str, Any]) -> dict[str, Any]:
@@ -237,3 +247,50 @@ def _sarif_level(value: str) -> str:
 
 def _escape_label(value: str) -> str:
     return value.replace("\\", "\\\\").replace("\n", "\\n").replace('"', '\\"')
+
+
+def render_gate_summary(result: GateResult) -> str:
+    counts = result.metrics.get("severity_counts", {})
+    lines = [
+        "# FinGuard 품질 게이트 결과",
+        "",
+        f"- 판정: **{result.decision.value.upper()}**",
+        f"- 정책: `{result.policy_id}` v{result.policy_version}",
+        f"- 변경 요청: `{result.change_id or '없음'}`",
+        f"- 평가 시각: {result.evaluated_at}",
+        f"- 조치 대상 이슈: {len(result.active_findings)}건",
+        f"- 승인된 예외: {len(result.excepted_findings)}건",
+        f"- VEX로 영향 없음 확인: {len(result.vexed_findings)}건",
+        (
+            "- 외부 승인 서명 검증: "
+            f"{'완료' if result.metrics.get('approval_attestation_verified') else '미확인'}"
+        ),
+        (
+            f"- 릴리스 대상 SHA-256: `{result.release_subject.digest}`"
+            if result.release_subject
+            else "- 릴리스 대상 SHA-256: `없음`"
+        ),
+        f"- 커버리지: {float(result.metrics.get('coverage_percent', 0)):.2f}%",
+        "",
+        "## 심각도별 탐지 결과",
+        "",
+        "| 심각도 | 건수 |",
+        "| --- | ---: |",
+    ]
+    for severity in ("critical", "high", "medium", "low", "info", "unknown"):
+        lines.append(f"| {severity} | {counts.get(severity, 0)} |")
+    lines.extend(["", "## 정책 위반 코드와 원본 메시지", ""])
+    if result.violations:
+        lines.extend(f"- `{item.code}`: {item.message}" for item in result.violations)
+    else:
+        lines.append("정책 위반이 없습니다.")
+    lines.extend(
+        [
+            "",
+            "## 무결성",
+            "",
+            "`manifest.json`과 `audit.jsonl`로 입력 및 판정 이력을 검증할 수 있습니다.",
+            "",
+        ]
+    )
+    return "\n".join(lines)

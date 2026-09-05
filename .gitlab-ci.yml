@@ -244,6 +244,7 @@ dast-release:
     - python -m pip install --no-deps .
     - cp config/zap-rules.conf "$REPORT_DIR/zap-rules.conf"
   script:
+    - python scripts/prepare_dast_images.py "$IMMUTABLE_IMAGE_REF" "$ZAP_IMAGE"
     - podman network create "finguard-${CI_PIPELINE_ID}-${CI_JOB_ID}"
     - podman run --detach --name "finguard-target-${CI_PIPELINE_ID}-${CI_JOB_ID}" --network "finguard-${CI_PIPELINE_ID}-${CI_JOB_ID}" --pull=never "$IMMUTABLE_IMAGE_REF"
     - for attempt in $(seq 1 30); do podman exec "finguard-target-${CI_PIPELINE_ID}-${CI_JOB_ID}" python -m sample_service.healthcheck && break; sleep 1; done
@@ -364,6 +365,7 @@ quality-gate-release:
     expire_in: 1 year
 
 deploy-production:
+  interruptible: false
   extends: .release-rules
   stage: deploy
   image: "$DEPLOY_RUNNER_IMAGE"
@@ -385,5 +387,5 @@ deploy-production:
     - python -m finguard deploy --cluster "$KUBE_CONTEXT" --namespace "$KUBE_NAMESPACE" --deployment "$KUBE_DEPLOYMENT" --container "$KUBE_CONTAINER" --image "$IMMUTABLE_IMAGE_REF" --expected-policy-id "$RELEASE_POLICY_ID" --expected-policy-version "$RELEASE_POLICY_VERSION" --expected-policy-sha256 "$RELEASE_POLICY_SHA256" --evidence "$EVIDENCE_DIR" --output build/deployment-result.json --cosign-verification-key "$FINGUARD_EVIDENCE_COSIGN_PUBLIC_KEY" --require-signature --result-cosign-signing-key "$FINGUARD_DEPLOYMENT_COSIGN_SIGNING_KEY" --result-cosign-bundle build/deployment-result.sigstore.json
   artifacts:
     when: always
-    paths: [build/deployment-result.json, build/deployment-result.sigstore.json]
+    paths: [build/deployment-result.json, build/deployment-result.sigstore.json, build/deployment-result.json.recovery.json]
     expire_in: 1 year

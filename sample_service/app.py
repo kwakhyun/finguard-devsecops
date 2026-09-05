@@ -39,7 +39,7 @@ class SecureHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def log_message(self, format: str, *args: object) -> None:
-        # Avoid leaking request data in the portfolio service's default logs.
+        # Avoid leaking request data in the sample service's default logs.
         return
 
 

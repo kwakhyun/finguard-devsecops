@@ -8,10 +8,10 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-FinGuard는 서로 다른 품질 및 보안 보고서를 하나의 모델로 정규화하고, 검증을 마친 입력만으로 릴리스 가능 여부를 판정하는 Python 기반 자동화 프로젝트입니다.
+FinGuard는 서로 다른 품질 및 보안 보고서를 하나의 모델로 정규화하고, 검증을 마친 입력만으로 릴리스 가능 여부를 판정하는 Python 기반 릴리스 게이트입니다.
 소스 커밋, 이미지 다이제스트, SBOM, 배포 대상을 `ReleaseSubject`로 묶습니다. 외부 변경 관리 승인과 스캔 실행 증명서가 같은 대상을 가리킬 때만 PASS 증적을 생성합니다.
 
-이 저장소는 채용 지원을 위해 설계한 독립 포트폴리오입니다. 예제 스캔 보고서와 샘플 서비스를 사용했으며, 실제 운영 환경 적용 사례나 규제 준수 인증을 주장하지 않습니다.
+예제 스캔 보고서와 샘플 서비스로 정책 판정과 배포 복구를 재현할 수 있습니다. 검증 환경과 외부 시스템 연동 범위는 아래에 별도로 명시합니다.
 
 ## 먼저 확인할 결과
 
@@ -29,8 +29,6 @@ FinGuard는 서로 다른 품질 및 보안 보고서를 하나의 모델로 정
 ## 프로젝트 정보
 
 - 개발자: [@kwakhyun](https://github.com/kwakhyun)
-- 개발 형태: 개인 프로젝트
-- 기여도: 100% — 기획, 아키텍처, Python 구현, 정책, CI/CD, 테스트, 문서화
 - 공개 검증: [GitHub Actions 실행 이력](https://github.com/kwakhyun/finguard-devsecops/actions/workflows/portfolio-ci.yml)
 
 ## 핵심 결과
@@ -42,7 +40,7 @@ FinGuard는 서로 다른 품질 및 보안 보고서를 하나의 모델로 정
 | 신뢰할 수 있는 판정 | 보고서 SHA-256, 스캐너, 규칙 세트, 허용된 명령어의 해시, 종료 코드, 러너, 서명, 취약점 DB 및 보고서의 최신성을 확인하고 검증에 실패하면 차단 |
 | 변경 통제 | CB/SR, 직무분리, 최종 빌드 이후 승인, 전체 변경 요청 다이제스트에 결속된 ITSM Cosign 증적, 배포 허용 시간 및 증적 유효성 검증 |
 | 감사 증적 | 평가 전 입력 스냅샷, 파일 매니페스트, 해시 체인 감사 로그, HMAC 또는 Cosign 서명, FinGuard 소유 표식 확인 후 증적을 원자적으로 교체 |
-| 배포 안전성 | 승인된 정책 원문의 SHA-256과 이미지 다이제스트만 Kubernetes에 배포, RBAC 사전 권한 검사, 결과 서명, 실패 시 이전 불변 이미지와 감사 애너테이션 복원 |
+| 배포 안전성 | 정책 원문의 SHA-256을 대조하고 승인된 이미지 다이제스트로 Kubernetes에 배포, RBAC 사전 권한 검사, 결과 서명, 실패 시 이전 불변 이미지와 감사 애너테이션 복원 |
 | 개발자 경험 | MR 전용 경량 정책, GitLab Code Quality, SARIF, 섀도 정책 비교, 빠른 로컬 피드백 |
 | 운영 가시성 | 판정, 탐지 결과, 예외, VEX, OSS 인벤토리, 승인 증적 검증 지표를 Prometheus 형식으로 출력 |
 
@@ -116,7 +114,7 @@ GitLab과 Jenkins 파이프라인은 변경 검증과 운영 릴리스의 신뢰
 
 - ITSM은 개인키로 승인 페이로드를 서명하고, CI는 공개키만 보유합니다.
 - 게이트 작업만 KMS 또는 Vault의 Cosign 서명 URI에 접근해 최종 증적을 서명합니다.
-- 배포 러너는 증적 공개키만 보유하며 `--require-signature`를 우회할 수 없습니다.
+- 배포 러너는 PASS 증적을 공개키로 검증하며, PASS 증적을 서명할 권한은 갖지 않습니다. `--require-signature`는 필수입니다.
 - 실제 배포에서는 별도 KMS 또는 Vault URI로 결과 JSON까지 서명해야 합니다. 서명 키가 없으면 Kubernetes를 변경하지 않습니다. Cosign 번들은 임시 파일에서 완성한 뒤 원자적으로 게시하므로, 서명에 실패한 불완전한 파일을 감사 결과로 남기지 않습니다.
 
 GitLab에서는 ITSM 승인 파일, Cosign 공개키, 증적 서명 키를 보호 변수로 관리합니다. 스캔 서명 키와 Kubernetes 자격 증명도 운영 릴리스 러너에만 제공합니다.
@@ -148,7 +146,7 @@ make demo-pass
 
 실제 배포에서는 서명된 PASS 증적으로 직무분리와 품질 통과 여부를 확인합니다. 정책 ID와 버전, 정책 파일 SHA-256, 변경 ID, 이미지, 클러스터, 워크로드, 배포 허용 시간, 증적 평가 시각도 다시 대조합니다.
 
-검증을 시작하기 전에 증적 디렉터리를 전용 스냅샷으로 고정하므로, 오래됐거나 미래 시각인 증적은 재사용할 수 없습니다.
+검증을 시작하기 전에 증적 디렉터리를 전용 스냅샷으로 복사해 검증 중 입력이 바뀌지 않도록 합니다. 증적 평가 시각도 검사해 유효 기간이 지났거나 미래 시각인 증적은 거부합니다.
 
 롤아웃, 스모크 테스트 또는 배포 결과 서명에 실패하면 배포 직전에 확인한 이전 이미지 다이제스트와 FinGuard 감사 애너테이션을 복원합니다. 실제 배포에는 `--result-cosign-signing-key`가 필요합니다. 결과 JSON과 서명 경로를 배타적으로 예약하고, 서명을 준비한 뒤 JSON을 마지막에 게시합니다. 다른 작성자의 파일이 먼저 생기면 덮어쓰지 않고 복구합니다. 변경 전에는 `<결과 경로>.recovery.json`에 이전 이미지와 감사 애너테이션을 저장합니다. 이 파일은 서명된 최종 결과와 구분하는 로컬 복구 기록입니다.
 
@@ -192,10 +190,10 @@ VEX는 제외할 지문을 집합에 모은 뒤 한 번 필터링합니다. 지�
 ## 자세한 문서
 
 - [아키텍처와 위협 모델](docs/architecture.md)
-- [DevOps 역량과 통제 구현 매핑](docs/control-mapping.md)
+- [DevOps 통제 구현과 검증](docs/control-mapping.md)
 - [Git 기반 CB/SR 변경 관리 흐름](docs/changeflow.md)
 - [운영과 장애 대응 런북](docs/operations-runbook.md)
-- [면접 시연 가이드](docs/portfolio-guide.md)
+- [사용 예제와 검증 가이드](docs/demo-guide.md)
 - [단계별 개선 이력과 다음 로드맵](docs/roadmap.md)
 
 ## 검증한 범위와 남은 한계
@@ -204,7 +202,7 @@ VEX는 제외할 지문을 집합에 모은 뒤 한 번 필터링합니다. 지�
 - 회귀 테스트는 Ruff, Mypy, 85% 이상의 커버리지 기준과 함께 `make quality`로 실행합니다. 배포 중단, 경로 예약, 동시 쓰기 충돌과 서명 실패도 검증합니다.
 - 공개 GitHub Actions는 Semgrep, Trivy, OWASP ZAP을 실제 실행합니다. 테스트 실패와 보안 탐지 결과는 보고서로 보존해 FinGuard 정책 게이트에 전달합니다. 정적 검사, 테스트 또는 커버리지 기준이 실패하면 최종 CI도 실패합니다.
 - 공개 저장소의 `main`은 Pull Request와 필수 CI 검사를 통과해야 변경할 수 있으며, 강제 푸시와 삭제를 차단합니다. Dependabot은 Python 및 GitHub Actions 의존성을 주간 주기로 점검합니다.
-- 별도 `release-integration` CI 잡은 임시 kind 클러스터와 로컬 레지스트리, 실제 Cosign 바이너리로 배포와 복구를 검증합니다. 테스트 결과와 한계는 [통합 테스트 가이드](docs/integration-testing.md)에 기록합니다. 실제 온프레미스 운영 적용 실적은 아닙니다.
+- 별도 `release-integration` CI 잡은 임시 kind 클러스터와 로컬 레지스트리, 실제 Cosign 바이너리로 배포와 복구를 검증합니다. 테스트 결과와 한계는 [통합 테스트 가이드](docs/integration-testing.md)에 기록합니다. 실제 온프레미스 운영 환경과의 연동은 검증 범위에 포함하지 않습니다.
 - 범용 SARIF 어댑터로 Coverity와 SonarQube 내보내기 결과를 읽을 수 있지만 상용 서버 API와 직접 통합하지는 않았습니다.
 - FOSSA 제품 실행은 검증 범위에 포함하지 않았습니다. 대신 Trivy, CycloneDX, SPDX로 OSS 취약점과 라이선스 관리 통제를 구현했습니다.
 - 실제 도입 시 ITSM 및 IdP API, 워크로드 아이덴티티 기반 스캐너 서명, 서명된 정책 번들, WORM 증적 저장소, SIEM 전송, 데이터베이스 마이그레이션 통제를 추가해야 합니다.

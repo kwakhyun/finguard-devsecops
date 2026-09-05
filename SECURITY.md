@@ -1,6 +1,6 @@
 # 보안 정책
 
-이 포트폴리오 저장소에서 보안 문제를 발견했다면 공개 이슈에 공격 코드, 비밀 값, 내부 환경 정보를 게시하지 마세요. [GitHub 비공개 보안 제보](https://github.com/kwakhyun/finguard-devsecops/security/advisories/new)를 통해 다음 정보를 전달해 주세요.
+FinGuard에서 보안 문제를 발견했다면 공개 이슈에 공격 코드, 비밀 값, 내부 환경 정보를 게시하지 마세요. [GitHub 비공개 보안 제보](https://github.com/kwakhyun/finguard-devsecops/security/advisories/new)를 통해 다음 정보를 전달해 주세요.
 
 - 영향을 받는 버전과 파일
 - 재현 조건과 예상 영향

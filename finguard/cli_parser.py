@@ -83,7 +83,7 @@ def build_parser(
     )
     verify.set_defaults(handler=handlers["verify"])
 
-    demo = commands.add_parser("demo", help="run a reproducible pass or fail portfolio scenario")
+    demo = commands.add_parser("demo", help="run a reproducible pass or fail policy scenario")
     demo.add_argument("--scenario", choices=["pass", "fail"], default="pass")
     demo.add_argument("--fixtures", type=Path, default=Path("examples/scenarios"))
     demo.add_argument("--policy", type=Path, default=Path("policies/financial-baseline.toml"))

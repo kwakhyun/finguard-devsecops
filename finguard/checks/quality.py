@@ -231,6 +231,7 @@ class QualityChecks:
             test_failures += value
             if scan.scanner == "junit":
                 tests = scan.metrics.get("tests")
+                skipped = scan.metrics.get("skipped")
                 if isinstance(tests, bool) or not isinstance(tests, int) or tests < 0:
                     violations.append(
                         GateViolation(
@@ -239,8 +240,24 @@ class QualityChecks:
                             details={"scanner": scan.scanner},
                         )
                     )
+                elif isinstance(skipped, bool) or not isinstance(skipped, int) or skipped < 0:
+                    violations.append(
+                        GateViolation(
+                            code="TEST_METRIC_INVALID",
+                            message="Skipped test count must be a non-negative integer",
+                            details={"scanner": scan.scanner},
+                        )
+                    )
+                elif value + skipped > tests:
+                    violations.append(
+                        GateViolation(
+                            code="TEST_METRIC_INVALID",
+                            message="Failed and skipped test counts exceed the total test count",
+                            details={"scanner": scan.scanner},
+                        )
+                    )
                 else:
-                    test_count += tests
+                    test_count += tests - skipped
         if coverage < self.policy.gate.min_coverage_percent:
             violations.append(
                 GateViolation(

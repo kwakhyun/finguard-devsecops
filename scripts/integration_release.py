@@ -23,6 +23,7 @@ import time
 from pathlib import Path
 
 from finguard.change import ChangeRequest
+from finguard.deployment_guard import DEPLOYMENT_LOCK_ANNOTATION
 from finguard.release import validate_image_reference
 
 NODE_IMAGE = (
@@ -322,6 +323,20 @@ def exercise(output: Path, temporary: Path, registry_image: str) -> dict[str, ob
                                     command, capture_output=True, text=True, timeout=30, check=False
                                 )  # noqa: S603
                                 assert second.returncode == 3 and "reserved" in second.stderr
+                                # A separate output path must still share the target lock.
+                                competing = command.copy()
+                                competing[competing.index("--output") + 1] = str(
+                                    directory / "competing-deployment.json"
+                                )
+                                second = subprocess.run(  # noqa: S603 - same test-owned target
+                                    competing,
+                                    capture_output=True,
+                                    text=True,
+                                    timeout=30,
+                                    check=False,
+                                )
+                                assert second.returncode == 3
+                                assert "deployment target is locked" in second.stderr
                                 process.send_signal(signal.SIGTERM)
                                 break
                             time.sleep(0.2)
@@ -335,6 +350,7 @@ def exercise(output: Path, temporary: Path, registry_image: str) -> dict[str, ob
             expected_code = 0 if case == "success" else 143 if case == "sigterm" else 3
             assert code == expected_code, f"{case}: exit {code}, inspect {directory / 'cli.log'}"
             state = json.loads(run(*kubectl, "get", "deployment/customer-credit-api", "-o", "json"))
+            assert DEPLOYMENT_LOCK_ANNOTATION not in state["metadata"].get("annotations", {})
             actual_image = state["spec"]["template"]["spec"]["containers"][0]["image"]
             assert actual_image == (candidate if case == "success" else previous)
             if case != "success":

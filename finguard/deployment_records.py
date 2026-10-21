@@ -6,6 +6,7 @@ import json
 import os
 import subprocess
 import tempfile
+from collections.abc import Callable
 from contextlib import ExitStack
 from pathlib import Path
 from types import TracebackType
@@ -86,7 +87,9 @@ class DeploymentRecords:
         except ConfigurationError as exc:
             raise DeploymentError(str(exc)) from exc
 
-    def persist(self, record: dict[str, Any]) -> None:
+    def persist(
+        self, record: dict[str, Any], *, before_publish: Callable[[], None] | None = None
+    ) -> None:
         with ExitStack() as stack:
             staging = Path(
                 stack.enter_context(
@@ -121,6 +124,8 @@ class DeploymentRecords:
                         assert_no_symlink_components(path, context="deployment result publish")
                         if path.exists() and not self.force:
                             raise DeploymentError(f"deployment result already exists: {path}")
+                if before_publish is not None:
+                    before_publish()
                 if staged_bundle is not None and self.bundle is not None:
                     self._publish(staged_bundle, self.bundle)
                     published_bundle = True

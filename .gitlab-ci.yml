@@ -209,11 +209,11 @@ sca-release:
     - test "$(trivy --version | sed -n 's/^Version:[[:space:]]*//p' | head -n 1)" = "$TRIVY_VERSION"
     - security_started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
     - security_status=0
-    - trivy --config config/trivy.yaml image --scanners vuln,misconfig,secret,license --license-full --format json --output "$REPORT_DIR/trivy.json" "$IMMUTABLE_IMAGE_REF" || security_status=$?
+    - python scripts/scan_release_image.py "$IMMUTABLE_IMAGE_REF" --format json --output "$REPORT_DIR/trivy.json" || security_status=$?
     - security_finished_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
     - sbom_started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
     - sbom_status=0
-    - trivy --config config/trivy.yaml image --format cyclonedx --output "$REPORT_DIR/sbom.cdx.json" "$IMMUTABLE_IMAGE_REF" || sbom_status=$?
+    - python scripts/scan_release_image.py "$IMMUTABLE_IMAGE_REF" --format cyclonedx --output "$REPORT_DIR/sbom.cdx.json" || sbom_status=$?
     - sbom_finished_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
     - test -f "$TRIVY_DB_METADATA_PATH"
     - test -n "$FINGUARD_SCAN_ATTESTATION_KEY"
@@ -242,7 +242,6 @@ dast-release:
     - mkdir -p "$REPORT_DIR" "$ATTESTATION_DIR"
     - test -n "$IMMUTABLE_IMAGE_REF"
     - python -m pip install --no-deps .
-    - cp config/zap-rules.conf "$REPORT_DIR/zap-rules.conf"
   script:
     - python scripts/prepare_dast_images.py "$IMMUTABLE_IMAGE_REF" "$ZAP_IMAGE"
     - podman network create "finguard-${CI_PIPELINE_ID}-${CI_JOB_ID}"
@@ -252,7 +251,7 @@ dast-release:
     - zap_target="http://finguard-target-${CI_PIPELINE_ID}-${CI_JOB_ID}:8080/"
     - scan_started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
     - zap_status=0
-    - podman run --rm --network "finguard-${CI_PIPELINE_ID}-${CI_JOB_ID}" --volume "$CI_PROJECT_DIR/$REPORT_DIR:/zap/wrk:rw" --pull=never "$ZAP_IMAGE" zap-baseline.py -t "$zap_target" -c zap-rules.conf -J zap.json || zap_status=$?
+    - python scripts/run_zap_scan.py --image "$ZAP_IMAGE" --network "finguard-${CI_PIPELINE_ID}-${CI_JOB_ID}" --target "$zap_target" --output "$REPORT_DIR/zap.json" || zap_status=$?
     - scan_finished_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
     - test -n "$FINGUARD_SCAN_ATTESTATION_KEY"
     - completion=--incomplete

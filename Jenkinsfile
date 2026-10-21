@@ -144,13 +144,12 @@ pipeline {
                 withCredentials([file(credentialsId: 'finguard-tool-image-cosign-public-key', variable: 'FINGUARD_TOOL_IMAGE_COSIGN_PUBLIC_KEY')]) {
                     sh 'cosign verify --key "$FINGUARD_TOOL_IMAGE_COSIGN_PUBLIC_KEY" "${ZAP_IMAGE}"'
                 }
-                sh 'cp config/zap-rules.conf "$REPORT_DIR/zap-rules.conf"'
                 sh '$PYTHON scripts/prepare_dast_images.py "$IMMUTABLE_IMAGE_REF" "$ZAP_IMAGE"'
                 sh 'podman network create "finguard-${BUILD_NUMBER}"'
                 sh 'podman run --detach --name "finguard-target-${BUILD_NUMBER}" --network "finguard-${BUILD_NUMBER}" --pull=never "$IMMUTABLE_IMAGE_REF"'
                 sh 'for attempt in $(seq 1 30); do podman exec "finguard-target-${BUILD_NUMBER}" python -m sample_service.healthcheck && break; sleep 1; done'
                 sh 'podman exec "finguard-target-${BUILD_NUMBER}" python -m sample_service.healthcheck'
-                sh 'zap_target="http://finguard-target-${BUILD_NUMBER}:8080/"; date -u +%Y-%m-%dT%H:%M:%SZ > build/zap.started; zap_status=0; podman run --rm --network "finguard-${BUILD_NUMBER}" --volume "$WORKSPACE/$REPORT_DIR:/zap/wrk:rw" --pull=never "${ZAP_IMAGE}" zap-baseline.py -t "$zap_target" -c zap-rules.conf -J zap.json || zap_status=$?; date -u +%Y-%m-%dT%H:%M:%SZ > build/zap.finished; printf "%s" "$zap_status" > build/zap.status'
+                sh 'zap_target="http://finguard-target-${BUILD_NUMBER}:8080/"; date -u +%Y-%m-%dT%H:%M:%SZ > build/zap.started; zap_status=0; $PYTHON scripts/run_zap_scan.py --image "$ZAP_IMAGE" --network "finguard-${BUILD_NUMBER}" --target "$zap_target" --output "$REPORT_DIR/zap.json" || zap_status=$?; date -u +%Y-%m-%dT%H:%M:%SZ > build/zap.finished; printf "%s" "$zap_status" > build/zap.status'
                 withCredentials([string(credentialsId: 'finguard-scan-attestation-key', variable: 'FINGUARD_SCAN_ATTESTATION_KEY')]) {
                     sh 'zap_status=$(cat build/zap.status); completion=--incomplete; test "$zap_status" -le 2 && completion=--complete; $PYTHON -m finguard attest-report --report "$REPORT_DIR/zap.json" --output "$ATTESTATION_DIR/zap.json" --scanner owasp-zap --category dast --scanner-version "$ZAP_VERSION" --scanner-uri "${ZAP_IMAGE}" --source-commit "$GIT_COMMIT" --image-digest "$IMAGE_DIGEST" --ruleset config/zap-rules.conf --command "zap-baseline.py -c zap-rules.conf" --ci-job-id "$BUILD_TAG:dast" --runner-id jenkins:onprem-release --exit-code "$zap_status" "$completion" --target-uri "http://finguard-target-${BUILD_NUMBER}:8080/" --started-at "$(cat build/zap.started)" --finished-at "$(cat build/zap.finished)" --signing-key-env FINGUARD_SCAN_ATTESTATION_KEY --key-id onprem-scan-attestor-v1; test "$zap_status" -le 2'
                 }

@@ -73,6 +73,26 @@ def test_gitlab_dast_resources_are_unique_per_job(project_root: Path) -> None:
     assert dast.index("prepare_dast_images.py") < dast.index("podman run --detach")
 
 
+def test_release_scans_use_scoped_authentication_and_private_zap_outputs(
+    project_root: Path,
+) -> None:
+    gitlab = (project_root / ".gitlab-ci.yml").read_text(encoding="utf-8")
+    jenkins = (project_root / "Jenkinsfile").read_text(encoding="utf-8")
+    sca = gitlab.split("sca-release:", 1)[1].split("dast-release:", 1)[0]
+    assert sca.count('scripts/scan_release_image.py "$IMMUTABLE_IMAGE_REF"') == 2
+    assert '--format json --output "$REPORT_DIR/trivy.json" || security_status=$?' in sca
+    assert '--format cyclonedx --output "$REPORT_DIR/sbom.cdx.json" || sbom_status=$?' in sca
+    gitlab_dast = gitlab.split("dast-release:", 1)[1].split("quality-gate-merge-request:", 1)[0]
+    jenkins_dast = jenkins.split("stage('Release DAST')", 1)[1].split(
+        "stage('Merge Request Gate')", 1
+    )[0]
+    for dast in (gitlab_dast, jenkins_dast):
+        assert "scripts/run_zap_scan.py" in dast
+        assert '--output "$REPORT_DIR/zap.json" || zap_status=$?' in dast
+        assert "/zap/wrk:rw" not in dast
+        assert "chmod" not in dast
+
+
 def test_production_job_cannot_be_auto_cancelled(project_root: Path) -> None:
     pipeline = (project_root / ".gitlab-ci.yml").read_text(encoding="utf-8")
     deployment = pipeline.split("deploy-production:", 1)[1]

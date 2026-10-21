@@ -47,3 +47,17 @@ def test_fingerprint_invalidates_when_dast_identity_changes(field):
     metadata[field] = "changed"
     assert finding.fingerprint != first
     assert Finding.from_dict(finding.to_dict()).fingerprint == finding.fingerprint
+
+
+@pytest.mark.parametrize(
+    ("field", "original", "changed"), [("method", "GET", "get"), ("parameter", "UserID", "userid")]
+)
+def test_dast_fingerprint_preserves_case_and_invalidates_cache(field, original, changed):
+    metadata = {"method": "GET", "parameter": "UserID", field: original}
+    finding = Finding("test", "dast", "RULE", Severity.HIGH, "issue", metadata=metadata)
+    first = finding.fingerprint
+
+    metadata[field] = changed
+
+    assert finding.fingerprint != first
+    assert Finding.from_dict(finding.to_dict()).fingerprint == finding.fingerprint

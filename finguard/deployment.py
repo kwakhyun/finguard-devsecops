@@ -6,6 +6,7 @@ import datetime as dt
 import hmac
 import re
 import subprocess
+import sys
 import time
 import urllib.error
 import urllib.parse
@@ -17,11 +18,17 @@ from typing import Any
 
 from .change import ChangeRequest
 from .config import Policy
+from .deployment_guard import (
+    AUDIT_ANNOTATIONS,
+    DEPLOYMENT_LOCK_ANNOTATION,
+    DeploymentConflict,
+    DeploymentGuard,
+    parse_deployment_state,
+)
 from .deployment_records import DeploymentRecords
 from .deployment_signals import DeploymentSignals
 from .errors import ConfigurationError, DeploymentError, EvidenceVerificationError
 from .evidence import sha256_file, verify_evidence_bundle
-from .jsonio import strict_json_loads
 from .release import ReleaseSubject, commit_matches
 from .safeio import assert_no_symlink_components
 from .signing import Runner as SigningRunner
@@ -31,11 +38,6 @@ HealthChecker = Callable[[str, float], bool]
 Sleeper = Callable[[float], None]
 DNS_LABEL = re.compile(r"^[a-z0-9](?:[-a-z0-9]*[a-z0-9])?$")
 IMMUTABLE_IMAGE = re.compile(r"^[^\s@]+@sha256:[0-9a-fA-F]{64}$")
-AUDIT_ANNOTATIONS = (
-    "finguard.io/change-id",
-    "finguard.io/evidence-sha256",
-    "finguard.io/release-subject-sha256",
-)
 
 
 @dataclass(frozen=True)
@@ -262,22 +264,12 @@ def _deploy(
         "--namespace",
         request.namespace,
     ]
-    set_image = [
-        *base,
-        "set",
-        "image",
-        f"deployment/{request.deployment}",
-        f"{request.container}={request.image}",
-    ]
-    annotate = [
-        *base,
-        "annotate",
-        f"deployment/{request.deployment}",
-        f"finguard.io/change-id={change_id}",
-        f"finguard.io/evidence-sha256={sha256_file(request.evidence_dir / 'manifest.json')}",
-        f"finguard.io/release-subject-sha256={subject.digest}",
-        "--overwrite",
-    ]
+    current_state_command = [*base, "get", f"deployment/{request.deployment}", "-o", "json"]
+    audit_annotations = {
+        "finguard.io/change-id": change_id,
+        "finguard.io/evidence-sha256": sha256_file(request.evidence_dir / "manifest.json"),
+        "finguard.io/release-subject-sha256": subject.digest,
+    }
     rollout_status = [
         *base,
         "rollout",
@@ -311,7 +303,9 @@ def _deploy(
         record.update(
             {
                 "status": "planned",
-                "commands": [set_image, annotate, rollout_status],
+                "commands": [current_state_command, rollout_status],
+                "mutation_strategy": "deployment lock and conditional JSON Patch",
+                "lock_annotation": DEPLOYMENT_LOCK_ANNOTATION,
                 "completed_at": dt.datetime.now(dt.UTC).isoformat(),
             }
         )
@@ -325,50 +319,29 @@ def _deploy(
         "patch",
         f"deployment/{request.deployment}",
     ]
-    current_state_command = [
-        *base,
-        "get",
-        f"deployment/{request.deployment}",
-        "-o",
-        "json",
-    ]
     mutation_attempted = False
-    rollback: list[str] = []
-    rollback_annotations: list[str] = []
+    guard = DeploymentGuard(
+        base,
+        deployment=request.deployment,
+        container=request.container,
+        runner=runner,
+        timeout=request.timeout_seconds,
+    )
     try:
         authorization = _run(runner, preflight, request.timeout_seconds).stdout.strip().casefold()
         if authorization != "yes":
             raise DeploymentError("kubectl identity cannot patch the target deployment")
-        old_image, previous_annotations = _current_deployment_state(
-            _run(runner, current_state_command, request.timeout_seconds).stdout,
-            container=request.container,
-        )
-        record["previous_image"] = old_image
+        original = guard.acquire()
+        record["deployment_uid"] = original.uid
+        record["deployment_lock_token"] = guard.token
+        record["previous_image"] = original.image
         record["previous_audit_annotations"] = {
-            key: previous_annotations.get(key) for key in AUDIT_ANNOTATIONS
+            key: original.annotations.get(key) for key in AUDIT_ANNOTATIONS
         }
-        rollback = [
-            *base,
-            "set",
-            "image",
-            f"deployment/{request.deployment}",
-            f"{request.container}={old_image}",
-        ]
-        rollback_annotations = [
-            *base,
-            "annotate",
-            f"deployment/{request.deployment}",
-            *(
-                f"{key}={previous_annotations[key]}" if key in previous_annotations else f"{key}-"
-                for key in AUDIT_ANNOTATIONS
-            ),
-            "--overwrite",
-        ]
         record["status"] = "prepared"
         records.checkpoint(record)
         mutation_attempted = True
-        _run(runner, set_image, request.timeout_seconds)
-        _run(runner, annotate, request.timeout_seconds)
+        guard.apply(request.image, audit_annotations)
         _run(runner, rollout_status, request.timeout_seconds)
         attempts_used = _verify_smoke_test(
             subject.healthcheck_url,
@@ -382,11 +355,14 @@ def _deploy(
             "status": "passed",
             "attempts": attempts_used,
         }
+        guard.verify()
         record["status"] = "succeeded"
         record["completed_at"] = dt.datetime.now(dt.UTC).isoformat()
         records.checkpoint(record)
-        records.persist(record)
+        # Final signing/publication is bounded and must not be interrupted after
+        # publishing a success record: recovery must never contradict that record.
         signals.recovering = True
+        records.persist(record, before_publish=guard.verify)
     except (
         subprocess.SubprocessError,
         OSError,
@@ -400,11 +376,15 @@ def _deploy(
         record["error"] = _safe_error(exc)
         if mutation_attempted:
             try:
-                _run(runner, rollback, request.timeout_seconds)
-                _run(runner, rollback_annotations, request.timeout_seconds)
-                _run(runner, rollout_status, request.timeout_seconds)
-                record["rollback_performed"] = True
-                record["rollback_status"] = "succeeded"
+                restored = guard.restore()
+                if restored:
+                    _run(runner, rollout_status, request.timeout_seconds)
+                    guard.verify()
+                record["rollback_performed"] = restored
+                record["rollback_status"] = "succeeded" if restored else "not-required"
+            except DeploymentConflict as rollback_error:
+                record["rollback_status"] = "skipped-conflict"
+                record["rollback_error"] = _safe_error(rollback_error)
             except (subprocess.SubprocessError, OSError, DeploymentError) as rollback_error:
                 record["rollback_status"] = "failed"
                 record["rollback_error"] = _safe_error(rollback_error)
@@ -425,6 +405,8 @@ def _deploy(
         raise DeploymentError(
             f"deployment failed; rollback status: {record.get('rollback_status', 'not-required')}"
         ) from exc
+    finally:
+        guard.release(suppress_errors=sys.exc_info()[0] is not None)
     return record
 
 
@@ -439,43 +421,8 @@ def _run(runner: Runner, command: Sequence[str], timeout: int) -> subprocess.Com
 
 
 def _current_deployment_state(payload: str, *, container: str) -> tuple[str, dict[str, str]]:
-    try:
-        value = strict_json_loads(payload)
-    except ValueError as exc:
-        raise DeploymentError("kubectl returned invalid deployment JSON") from exc
-    if not isinstance(value, dict):
-        raise DeploymentError("kubectl deployment response must be an object")
-    metadata = value.get("metadata", {})
-    spec = value.get("spec", {})
-    if not isinstance(metadata, Mapping) or not isinstance(spec, Mapping):
-        raise DeploymentError("kubectl deployment response is missing metadata or spec")
-    annotations_raw = metadata.get("annotations", {})
-    if annotations_raw is None:
-        annotations_raw = {}
-    if not isinstance(annotations_raw, Mapping) or not all(
-        isinstance(key, str) and isinstance(item, str) for key, item in annotations_raw.items()
-    ):
-        raise DeploymentError("deployment annotations are invalid")
-    template = spec.get("template", {})
-    if not isinstance(template, Mapping):
-        raise DeploymentError("deployment pod template is invalid")
-    pod_spec = template.get("spec", {})
-    if not isinstance(pod_spec, Mapping):
-        raise DeploymentError("deployment pod specification is invalid")
-    containers = pod_spec.get("containers")
-    if not isinstance(containers, list) or not all(
-        isinstance(item, Mapping) for item in containers
-    ):
-        raise DeploymentError("deployment containers are invalid")
-    matches = [item for item in containers if item.get("name") == container]
-    if len(matches) != 1:
-        raise DeploymentError("target container was not found exactly once in the deployment")
-    old_image = matches[0].get("image")
-    if not isinstance(old_image, str) or not IMMUTABLE_IMAGE.fullmatch(old_image):
-        raise DeploymentError(
-            "current deployment image is not immutable; refusing a non-recoverable mutation"
-        )
-    return old_image, dict(annotations_raw)
+    state = parse_deployment_state(payload, container=container)
+    return state.image, state.annotations
 
 
 def _validate_result_paths(

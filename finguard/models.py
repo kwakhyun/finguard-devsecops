@@ -132,8 +132,10 @@ class Finding:
             # under-count findings against a policy maximum.
             identity["location"] = self.location.replace("\\", "/")
         if category == "dast":
-            identity["method"] = str(self.metadata.get("method", "")).casefold()
-            identity["parameter"] = str(self.metadata.get("parameter", "")).casefold()
+            # HTTP method tokens and application parameter names can be
+            # case-sensitive; folding them can merge separately reviewed issues.
+            identity["method"] = str(self.metadata.get("method", ""))
+            identity["parameter"] = str(self.metadata.get("parameter", ""))
         # Metadata may contain mutable aliases or DAST identity fields. Compare
         # an immutable identity before reusing the digest; never cache by path or
         # assume a frozen dataclass recursively freezes caller-owned metadata.
